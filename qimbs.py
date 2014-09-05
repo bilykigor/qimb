@@ -27,7 +27,7 @@ def import_month(month):
         else:
             d = '%s' % i
         
-        f = '/home/user/PyProjects/data/2014-%s-%s/CommonAggr_2014-%s-%s.csv' % (m,d,m,d)
+        f = '/home/user1/PyProjects/data/2014-%s-%s/CommonAggr_2014-%s-%s.csv' % (m,d,m,d)
         
         if (not os.path.isfile(f)): continue
             
@@ -48,7 +48,7 @@ def import_month(month):
     return df
 
 def import_file(f):
-    df = pd.read_csv('/home/user/PyProjects/data/' + f, low_memory=False)
+    df = pd.read_csv('/home/user1/PyProjects/data/' + f, low_memory=False)
     target_cols = ['Date','Time','Fracs','Symbol','Reason','tSide','tPrice','tShares',
                     'Bid_P', 'Bid_S', 'Ask_P', 'Ask_S', 
                     'ImbRef','ImbCBC', 'ImbFar', 'ImbShares', 'ImbPaired']

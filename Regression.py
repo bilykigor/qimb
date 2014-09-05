@@ -10,17 +10,17 @@ from ggplot import *
 
 # <codecell>
 
+reload(qimbs)
+
+# <codecell>
+
 #!Importing data
-df = qimbs.import_data1()
+df = qimbs.import_month(7)
 
 # <codecell>
 
 #Adding Timestamp column
 df = qimbs.create_timestamp(df)
-
-# <codecell>
-
-reload(qimbs)
 
 # <codecell>
 
@@ -31,14 +31,17 @@ imbalanceMsg = qimbs.get_imbelanceMSG(df,0)
 
 #Creating features
 fdf,Features = qimbs.create_features2(imbalanceMsg)
+
+# <codecell>
+
 fdf=fdf[(abs(fdf.Far)<0.2) & (abs(fdf.Near)<0.2) &
-        (abs(fdf.PrevOPC)<0.2) & (abs(fdf.PrevCLC)<0.2) &
+        (abs(fdf.PrevCLC)<0.2) & (abs(fdf.PrevOPC)<0.2) &
         (abs(fdf.Bid)<0.2) & (abs(fdf.Ask)<0.2)]
 fdf.index = range(fdf.shape[0])
 
 # <codecell>
 
-X = fdf[['Move','Bid', 'Ask',  'Near', 'Far', 'PrevOPC', 'PrevCLC']]
+X = fdf[['Move','Bid', 'Ask',  'Near', 'Far',  'PrevCLC',  'PrevOPC']]
 #X['Bias'] = np.ones((X.shape[0],1))
 
 y = fdf['Move']
@@ -50,7 +53,7 @@ ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 # <codecell>
 
-ggplot(fdf,aes(x='PrevCLC')) + geom_histogram()
+ggplot(fdf,aes(x='Move')) + geom_histogram(binwidth = 0.05)
 
 # <codecell>
 
@@ -98,12 +101,12 @@ X_pca.describe()
 
 # <codecell>
 
-from sklearn.decomposition import PCA
+pca.components_
 
-n_components = n_row * n_col # 10
-estimator = PCA(n_components=n_components)
-X_pca = estimator.fit_transform(X_digits)
-plot_pca_scatter()
+# <codecell>
+
+ggplot(X[y>=0.5], aes('Near','Far')) + geom_point(size=1, color='green') +\
+geom_point(X[y<0.5], aes('Near','Far'),size=1, color='red')
 
 # <codecell>
 

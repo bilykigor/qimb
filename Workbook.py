@@ -14,8 +14,29 @@ reload(qimbs)
 
 # <codecell>
 
+for i in range (1,32):  
+    if i<10:
+         d = '0%s' % i
+    else:
+         d = '%s' % i
+        
+    f = '/home/user/PyProjects/data/2014-%s-%s/CommonAggr_2014-%s-%s.csv' % (m,d,m,d)
+        
+    if (not os.path.isfile(f)): continue
+            
+    if (df.shape[0]==0):
+        df = pd.read_csv(f, low_memory=False)
+    else:
+        df=df.append(pd.read_csv(f, low_memory=False))
+
+# <codecell>
+
+df
+
+# <codecell>
+
 #!Importing data
-df = qimbs.import_month(3)
+df = qimbs.import_month(7)
 print df.shape
 
 # <codecell>
