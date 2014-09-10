@@ -14,27 +14,6 @@ reload(qimbs)
 
 # <codecell>
 
-for i in range (1,32):  
-    if i<10:
-         d = '0%s' % i
-    else:
-         d = '%s' % i
-        
-    f = '/home/user/PyProjects/data/2014-%s-%s/CommonAggr_2014-%s-%s.csv' % (m,d,m,d)
-        
-    if (not os.path.isfile(f)): continue
-            
-    if (df.shape[0]==0):
-        df = pd.read_csv(f, low_memory=False)
-    else:
-        df=df.append(pd.read_csv(f, low_memory=False))
-
-# <codecell>
-
-df
-
-# <codecell>
-
 #!Importing data
 df = qimbs.import_month(7)
 print df.shape
@@ -46,12 +25,8 @@ df = qimbs.create_timestamp(df)
 
 # <codecell>
 
-DF=DF.append(df);
-
-# <codecell>
-
 #Getting imbalance info
-imbalanceMsg = qimbs.get_imbelanceMSG(df,0)
+imbalanceMsg = qimbs.get_imbelanceMSG2(df,0)
 
 # <codecell>
 
@@ -64,14 +39,23 @@ imbalanceMsg.index = range(imbalanceMsg.shape[0])
 
 #Creating features
 fdf,Features = qimbs.create_features(imbalanceMsg)
-#fdf = fdf.ix[fdf.Spread<0.02,:]
-
-# <codecell>
-
 X = fdf[[ 'Spread', 'D1', 'D2', 'D3', 'D4', 'D5','D44', 'D55','D444', 'D555', 'D6', 'D66','D7', 'V1', 'V11',
          'V2', 'V3', 'V4', 'V5', 'V6', 'V7','V8','V9', 'a1', 'a2', 'a3',
  'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'a10', 'a11', 'a12', 'a13','a14']]
 X['Bias'] = np.ones((X.shape[0],1))
+
+y = fdf['Move']
+
+dates = sorted(list(set(fdf.Date)))
+datesDF = qimbs.dates_tmp_df(fdf)
+
+ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
+
+# <codecell>
+
+#Creating features
+fdf,Features = qimbs.create_features3(imbalanceMsg)
+X = fdf[['Bid','Ask','Near','Far','PrevCLC' ]]
 
 y = fdf['Move']
 
@@ -94,7 +78,7 @@ qimbs.OneModelResults('B', X,y,ERRORS,dates,datesDF)
 #Apply Random Forest
 from sklearn.ensemble import RandomForestClassifier as RF
 print "Random forest:"
-qimbs.OneModelResults(RF, X,y,ERRORS,dates,datesDF,n_ensembles=10, test_size_ensemble=0.2)
+qimbs.OneModelResults(RF, X,y,ERRORS,dates,datesDF)
 
 # <codecell>
 
@@ -122,7 +106,7 @@ geom_point() + geom_text(vjust=0.005)
 # <codecell>
 
 print 'Main features are:'
-for f in list(fi['Feature'][:6]):
+for f in list(fi['Feature'][:5]):
     print '%s  %s' %(f,Features[f])
 
 # <codecell>
@@ -189,7 +173,8 @@ xlab('n important features selected')+ylab('Error')+ggtitle('Features importance
 # <codecell>
 
 #Lets run RF with les features
-qimbs.OneModelResults(RF, X[fi['Feature'][:18]],y, ERRORS,dates,datesDF,n_ensembles=10, test_size_ensemble=0.2)
+qimbs.OneModelResults(RF, X[fi['Feature'][:9]],y, ERRORS,dates,datesDF,n_ensembles=10,\
+                      test_size_ensemble=0.2)
 
 # <codecell>
 
@@ -217,7 +202,7 @@ ERRORS=ERRORS.sort(['TrainError', 'TestError'])
 ggplot(ERRORS, aes('TrainError', 'TestError')) + geom_point() + \
 ggtitle('Model comparison') + xlab("TrainError") +\
 ylab("TestError") +geom_text(aes(label='Model'),hjust=0, vjust=0)\
-+ ylim(0,0.5)+ xlim(0,0.5) + geom_abline(intercept = 0.278, slope = 0\
++ ylim(0,0.5)+ xlim(0,0.5) + geom_abline(intercept = 0.225, slope = 0\
                                          ,color='red')
 
 # <codecell>
@@ -252,7 +237,7 @@ ggplot(result1, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result1.P
 # <codecell>
 
 #RandomForest
-Signals =  qimbs.get_signals1(imbalanceMsg,X[fi['Feature'][:18]],y,RF,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
+Signals =  qimbs.get_signals1(imbalanceMsg,X,y,RF,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
 Symbols = sorted(list(set(df.Symbol)))
 SymbolsInd=dict()
 for i in range(len(Symbols)):
@@ -279,6 +264,41 @@ ggplot(result1, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result1.P
 
 from IPython.core.display import Image 
 Image(filename='/home/user/PyProjects/Results/1.png') 
+
+# <codecell>
+
+from sklearn.ensemble import RandomForestClassifier as RF
+clf = RF(min_samples_split = 20)
+clf.fit(X,y)
+qimbs.Forest2Txt(clf, X.ix[0:100,:],'/home/user1/Desktop/Share2Windows')
+
+# <codecell>
+
+t=clf.estimators_[0].tree_
+from sklearn.externals.six import StringIO  
+import pydot
+from sklearn import tree
+out = StringIO() 
+tree.export_graphviz(t, out_file=out) 
+#print out.getvalue()
+graph = pydot.graph_from_dot_data(out.getvalue()) 
+graph.write_pdf("t.pdf") 
+
+# <codecell>
+
+clf.classes_
+
+# <codecell>
+
+X.head()
+
+# <codecell>
+
+fdf.ix[0,:]
+
+# <codecell>
+
+imbalanceMsg.ix[0,:]
 
 # <codecell>
 

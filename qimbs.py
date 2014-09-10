@@ -170,8 +170,6 @@ def get_imbelanceMSG(df,nImb):
     imbalanceMsg = df[df.Reason == 'Imbalance'].between_time(startTime,endTime)
     #.between_time('9:29:52','9:29:57')
     imbalanceMsg = imbalanceMsg[
-    #(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 0.2 * 
-    #(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) & 
     (imbalanceMsg.Bid_P>0.01) & 
     (imbalanceMsg.Ask_P<199999.99) & 
     (imbalanceMsg.ImbRef>0) & 
@@ -391,6 +389,154 @@ def create_features2(imbalanceMsg):
     
     return fdf, Features
 
+def create_features3(imbalanceMsg):  
+    #Creating features for algorithm
+    import numpy
+    fdf = pd.DataFrame()
+    Features = dict()
+
+    fdf['Symbol'] = imbalanceMsg.Symbol
+    fdf['Date'] = imbalanceMsg.Date
+
+    fdf['Move'] = imbalanceMsg.Move
+    Features['Move'] = 'Move'
+       
+    fdf['Bid'] = imbalanceMsg.Bid_P/imbalanceMsg.ImbRef-1
+    Features['Bid'] = 'Bid(9.28)'
+    
+    fdf['Ask'] = imbalanceMsg.Ask_P/imbalanceMsg.ImbRef-1
+    Features['Ask'] = 'Ask(9.28)'
+       
+    fdf['Near'] = imbalanceMsg.ImbCBC/imbalanceMsg.ImbRef-1
+    Features['Near'] = 'Near(9.28)'
+    
+    fdf['Far'] = imbalanceMsg.ImbFar/imbalanceMsg.ImbRef-1
+    Features['Far'] = 'Far(9.28)'
+        
+    fdf['PrevCLC'] = imbalanceMsg.PrevCLC_P/imbalanceMsg.ImbRef-1
+    Features['PrevCLC'] = 'PrevCLC'
+    
+    fdf.index = range(fdf.shape[0])
+    
+    return fdf, Features
+
+# <codecell>
+
+def get_imbelanceMSG2(df,nImb):
+    startTime = '9:27:58'
+    endTime = '9:28:03'
+    if nImb==2:
+        startTime = '9:28:03'
+        endTime = '9:28:08'
+    elif nImb==3:
+        startTime = '9:28:08'
+        endTime = '9:28:12'
+    elif nImb==4:
+        startTime = '9:28:12'
+        endTime = '9:28:18'
+    elif nImb==5:
+        startTime = '9:28:18'
+        endTime = '9:28:22'
+    elif nImb==6:
+        startTime = '9:28:22'
+        endTime = '9:28:28'
+    elif nImb==7:
+        startTime = '9:28:28'
+        endTime = '9:28:32'
+    elif nImb==8:
+        startTime = '9:28:32'
+        endTime = '9:28:38'
+    elif nImb==9:
+        startTime = '9:28:38'
+        endTime = '9:28:42'
+    elif nImb==10:
+        startTime = '9:28:42'
+        endTime = '9:28:48'
+    elif nImb==11:
+        startTime = '9:28:48'
+        endTime = '9:28:52'
+    elif nImb==12:
+        startTime = '9:28:52'
+        endTime = '9:28:58'
+    elif nImb==13:
+        startTime = '9:28:58'
+        endTime = '9:29:02'
+    elif nImb==14:
+        startTime = '9:29:02'
+        endTime = '9:29:08'
+    elif nImb==15:
+        startTime = '9:29:08'
+        endTime = '9:29:12'
+    elif nImb==16:
+        startTime = '9:29:12'
+        endTime = '9:29:18'
+    elif nImb==17:
+        startTime = '9:29:18'
+        endTime = '9:29:22'
+    elif nImb==18:
+        startTime = '9:29:22'
+        endTime = '9:29:28'
+    elif nImb==19:
+        startTime = '9:29:28'
+        endTime = '9:29:32'
+    elif nImb==20:
+        startTime = '9:29:32'
+        endTime = '9:29:38'
+    elif nImb==21:
+        startTime = '9:29:38'
+        endTime = '9:29:42'
+    elif nImb==22:
+        startTime = '9:29:42'
+        endTime = '9:29:48'
+    elif nImb==23:
+        startTime = '9:29:48'
+        endTime = '9:29:52'
+    elif nImb==24:
+        startTime = '9:29:52'
+        endTime = '9:29:58'
+
+    
+    imbalanceMsg = df[df.Reason == 'Imbalance'].between_time(startTime,endTime)
+    imbalanceMsg = imbalanceMsg[
+    (imbalanceMsg.ImbRef>0) & 
+    (imbalanceMsg.ImbCBC>0) &
+    (imbalanceMsg.ImbFar>0) &
+    (imbalanceMsg.ImbShares!=0)
+    ]
+
+    imbalanceMsg = imbalanceMsg[['Symbol','Bid_P','Bid_S','Ask_P','Ask_S','ImbRef','ImbCBC','ImbFar','ImbShares','ImbPaired']]
+    imbalanceMsg['Date'] = imbalanceMsg.index.date
+    imbalanceMsg['Timestamp'] = imbalanceMsg.index
+         
+    #Getting additional info about previous day
+    OPC = df[df.Reason == 'OPG']
+    OPC = OPC[['Symbol','tPrice']]
+    OPC.columns = ['Symbol','OPC_P']
+    OPC['Date'] = OPC.index.date
+    
+    prev_CLC = df[df.tSide == 'YDAY']
+    prev_CLC = prev_CLC[['Symbol','tPrice','tShares']]
+    prev_CLC.columns = ['Symbol','PrevCLC_P','PrevCLC_S']
+    prev_CLC['Date'] = prev_CLC.index.date
+    
+    #Adding OPC
+    imbalanceMsg = pd.merge(imbalanceMsg, OPC, on=['Symbol','Date'])
+    imbalanceMsg = pd.merge(imbalanceMsg, prev_CLC, on=['Symbol','Date'])
+
+    #Filtering data with no prev OPC
+    imbalanceMsg = imbalanceMsg[imbalanceMsg.OPC_P>0]
+    imbalanceMsg.index = range(imbalanceMsg.shape[0])    
+    
+    #Adding new feature which reflects price move direction
+    imbalanceMsg['Move'] = imbalanceMsg.Bid_P
+    imbalanceMsg.Move = 0
+    imbalanceMsg.Move[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P] = 1
+    imbalanceMsg.Move[imbalanceMsg.OPC_P<imbalanceMsg.Bid_P] = -1
+    
+    return imbalanceMsg   
+    
+    return imbalanceMsg   
+
 # <codecell>
 
 def Precision_Recall(cm):
@@ -470,7 +616,7 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 else:
-                    clf = clf_class()
+                    clf = clf_class(min_samples_split = 20)
                     
                 clf.fit(Xtrain_sub,ytrain_sub)
                 #print clf.coef_
@@ -997,4 +1143,49 @@ def get_performance(Signals,df,days,SymbolsInd,T,TN,add=0):
 
 # <codecell>
 
+def Tree2Txt(t,fileName):
+    f = open(fileName, 'w+')
+    f.write(str(t.n_classes[0])+'\n');
+    f.write(str(t.n_features)+'\n');
+    f.write(str(t.capacity)+'\n');
+    for i in range(t.capacity):
+        s= '%d;%f;' % (t.feature[i],t.threshold[i])
+        for j in range(t.n_classes[0]):
+            Sum = sum(t.value[i][0])
+            if Sum>0:
+                s +='%s;' %  str(t.value[i][0][j]/Sum)
+            else:
+                 s +='%s;' % '0'
+        f.write(s+'\n')
+    f.close()
+
+def TreeTest2Txt(clf,X,fileName):
+    f = open(fileName, 'w+')
+    proba = clf.predict_proba(X)
+    for i in range(X.shape[0]):
+        s= ''
+        for j in range(X.shape[1]):
+            s +='%s;' %  str(X.ix[i,j])
+        for j in range(proba.shape[1]):
+            s +='%s;' %  str(proba[i,j])
+        f.write(s+'\n')
+    f.close()
+    
+def Forest2Txt(clf,X,Dir):
+    for i in range(clf.n_estimators):
+        Tree2Txt(clf.estimators_[i].tree_,Dir + '/%u.t' % i)
+    TreeTest2Txt(clf,X,Dir + '/test.u')
+
+# <codecell>
+
+def visualize_tree(clf):
+    t=clf.estimators_[0].tree_
+    from sklearn.externals.six import StringIO  
+    import pydot
+    from sklearn import tree
+    out = StringIO() 
+    tree.export_graphviz(t, out_file=out) 
+    #print out.getvalue()
+    graph = pydot.graph_from_dot_data(out.getvalue()) 
+    graph.write_pdf("t.pdf") 
 

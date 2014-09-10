@@ -41,7 +41,7 @@ fdf.index = range(fdf.shape[0])
 
 # <codecell>
 
-X = fdf[['Move','Bid', 'Ask',  'Near', 'Far',  'PrevCLC',  'PrevOPC']]
+X = fdf[['Bid', 'Ask',  'Near', 'Far',  'PrevCLC',  'PrevOPC']]
 #X['Bias'] = np.ones((X.shape[0],1))
 
 y = fdf['Move']
@@ -50,6 +50,11 @@ dates = sorted(list(set(fdf.Date)))
 datesDF = qimbs.dates_tmp_df(fdf)
 
 ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
+
+# <codecell>
+
+y[y>0]=1
+y[y<0]=-1
 
 # <codecell>
 
@@ -127,4 +132,21 @@ print 'MAE: %s, MSE: %s, R2: %s' % \
 # <codecell>
 
 plt.scatter(y,r.predict(X)) #+ geom_abline(color='red')
+
+# <codecell>
+
+dates = sorted(list(set(fdf.Date)))
+datesDF = qimbs.dates_tmp_df(fdf)
+
+ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
+
+# <codecell>
+
+#Apply Random Forest
+from sklearn.ensemble import RandomForestClassifier as RF
+print "Random forest:"
+qimbs.OneModelResults(RF, X,y,ERRORS,dates,datesDF,n_ensembles=10, test_size_ensemble=0.2)
+
+# <codecell>
+
 

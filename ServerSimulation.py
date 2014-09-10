@@ -10,7 +10,7 @@ df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTrade
 # <codecell>
 
 d='/home/user1/Desktop/Share2Windows/'
-
+import os
 for f_name in os.listdir(d):
     file = open(d+f_name, 'r')
     for line in file:
