@@ -416,6 +416,52 @@ def create_features3(imbalanceMsg):
     fdf['PrevCLC'] = imbalanceMsg.PrevCLC_P/imbalanceMsg.ImbRef-1
     Features['PrevCLC'] = 'PrevCLC'
     
+    #================================================================
+    fdf['Spread'] = (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)/imbalanceMsg.ImbRef
+    Features['Spread'] = '(Ask-Bid) at 9.28'
+
+    fdf['D3'] = 100*(0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)/imbalanceMsg.PrevCLC_P-1)
+    Features['D3'] = 'Mid(9.28)/CloseCross(day before)-1'
+    
+    fdf['D4'] = 100*(imbalanceMsg.Bid_P-imbalanceMsg.ImbRef)/imbalanceMsg.PrevCLC_P
+    Features['D4'] = '(Bid(9.28)-ImbRef(9.28))/CloseCross(day before)'
+
+    fdf['D5'] = 100*(imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/imbalanceMsg.PrevCLC_P
+    Features['D5'] = '(ImbRef(9.28)-Ask(9.28))/CloseCross(day before)'       
+    
+    fdf['D444'] = (imbalanceMsg.Bid_P-imbalanceMsg.ImbRef)/(1+imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    Features['D444'] = '(Bid(9.28)-ImbRef(9.28))/1+Spread'
+
+    fdf['D555'] = (imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/(1+imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    Features['D555'] = '(ImbRef(9.28)-Ask(9.28))/1+Spread'
+    
+    
+    
+    
+    
+    fdf['D7'] = 100*(imbalanceMsg.ImbRef/imbalanceMsg.PrevCLC_P-1)
+    Features['D7'] = 'ImbRef(9.28)/CloseCross(day before)-1'
+    
+    fdf['D66'] = 100*(2*imbalanceMsg.ImbRef/(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)-1)
+    Features['D66'] = 'ImbRef(9.28)/Mid-1'
+
+    fdf['V1'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/(100*numpy.sign(imbalanceMsg.ImbShares)+imbalanceMsg.ImbShares)
+    Features['V1'] = '(Ask_S-Bid_S) at 9.28/Imbalance(9.28)'
+    
+    fdf['V11'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/(100+imbalanceMsg.ImbPaired)
+    Features['V11'] = '(Ask_S-Bid_S) at 9.28/PairedS(9.28)'
+    
+    fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
+    Features['V8'] = 'ImbalanceS(9.28)/PairedS(9.28)'
+         
+    fdf['a3'] = fdf['D3']*fdf['D4']
+    
+    fdf['a4'] = fdf['D5']*fdf['D4']
+    Features['a4'] = Features['D5'] + ' Multiply ' + Features['D4']
+            
+    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
+    Features['a14'] = 'Sign of Imbalance'
+    
     fdf.index = range(fdf.shape[0])
     
     return fdf, Features
@@ -616,7 +662,7 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 else:
-                    clf = clf_class(min_samples_split = 20)
+                    clf = clf_class(min_samples_split = Xtrain.shape[0]*0.1)
                     
                 clf.fit(Xtrain_sub,ytrain_sub)
                 #print clf.coef_
@@ -983,7 +1029,7 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 else:
-                    clf = clf_class()
+                    clf = clf_class(min_samples_split = Xtrain.shape[0]*0.1)
                 
                 clf.fit(Xtrain,ytrain)
 
@@ -999,7 +1045,7 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
                     if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                         clf = clf_class(class_weight='auto')
                     else:
-                        clf = clf_class()
+                        clf = clf_class(min_samples_split = Xtrain.shape[0]*0.1)
                         
                     clf.fit(Xtrain_sub,ytrain_sub)
                     

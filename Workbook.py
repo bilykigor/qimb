@@ -15,8 +15,15 @@ reload(qimbs)
 # <codecell>
 
 #!Importing data
-df = qimbs.import_month(7)
+df = pd.DataFrame()
+for i in range(5,7):
+    df = df.append(qimbs.import_month(i))
+    print i
 print df.shape
+
+# <codecell>
+
+df.index = range(df.shape[0])
 
 # <codecell>
 
@@ -55,7 +62,10 @@ ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 #Creating features
 fdf,Features = qimbs.create_features3(imbalanceMsg)
-X = fdf[['Bid','Ask','Near','Far','PrevCLC' ]]
+
+X = fdf[['Bid','Ask','Near','Far','PrevCLC','Spread',
+ 'D3', 'D4', 'D5', 'D444', 'D555', 'D7', 'D66', 'V1', 'V11', 
+ 'V8', 'a3', 'a4', 'a14' ]]
 
 y = fdf['Move']
 
@@ -91,7 +101,7 @@ print list(X.columns[fs.ranking_==1])
 # <codecell>
 
 #Lets see features importance and try to reduce the number of feature for RF algo
-clf = RF()
+clf = RF(min_samples_split=0.1*X.shape[0])
 clf.fit(X,y)
 
 fi = pd.DataFrame()
@@ -106,7 +116,7 @@ geom_point() + geom_text(vjust=0.005)
 # <codecell>
 
 print 'Main features are:'
-for f in list(fi['Feature'][:5]):
+for f in list(fi['Feature'][:10]):
     print '%s  %s' %(f,Features[f])
 
 # <codecell>
@@ -173,7 +183,7 @@ xlab('n important features selected')+ylab('Error')+ggtitle('Features importance
 # <codecell>
 
 #Lets run RF with les features
-qimbs.OneModelResults(RF, X[fi['Feature'][:9]],y, ERRORS,dates,datesDF,n_ensembles=10,\
+qimbs.OneModelResults(RF, X[fi['Feature'][:10]],y, ERRORS,dates,datesDF,n_ensembles=10,\
                       test_size_ensemble=0.2)
 
 # <codecell>
@@ -188,7 +198,7 @@ qimbs.OneModelResults(LR, X,y,ERRORS,dates,datesDF, n_ensembles=5, test_size_ens
 
 from sklearn.svm import SVC
 print "SVC:"
-qimbs.OneModelResults(SVC, X[fi['Feature'][:18]], y,ERRORS,dates,datesDF, n_ensembles=5, test_size_ensemble=0.2)
+qimbs.OneModelResults(SVC, X[fi['Feature'][:10]], y,ERRORS,dates,datesDF, n_ensembles=5, test_size_ensemble=0.2)
 
 # <codecell>
 
@@ -202,7 +212,7 @@ ERRORS=ERRORS.sort(['TrainError', 'TestError'])
 ggplot(ERRORS, aes('TrainError', 'TestError')) + geom_point() + \
 ggtitle('Model comparison') + xlab("TrainError") +\
 ylab("TestError") +geom_text(aes(label='Model'),hjust=0, vjust=0)\
-+ ylim(0,0.5)+ xlim(0,0.5) + geom_abline(intercept = 0.225, slope = 0\
++ ylim(0,0.5)+ xlim(0,0.5) + geom_abline(intercept = 0.217, slope = 0\
                                          ,color='red')
 
 # <codecell>
@@ -237,7 +247,7 @@ ggplot(result1, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result1.P
 # <codecell>
 
 #RandomForest
-Signals =  qimbs.get_signals1(imbalanceMsg,X,y,RF,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
+Signals =  qimbs.get_signals1(imbalanceMsg,X[fi['Feature'][:10]],y,RF,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
 Symbols = sorted(list(set(df.Symbol)))
 SymbolsInd=dict()
 for i in range(len(Symbols)):
@@ -250,7 +260,7 @@ ggplot(result2, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.P
 # <codecell>
 
 #SVC
-Signals =  qimbs.get_signals1(imbalanceMsg, X[fi['Feature'][:18]],y,SVC,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
+Signals =  qimbs.get_signals1(imbalanceMsg, X[fi['Feature'][:10]],y,SVC,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
 Symbols = sorted(list(set(df.Symbol)))
 SymbolsInd=dict()
 for i in range(len(Symbols)):
@@ -268,38 +278,7 @@ Image(filename='/home/user/PyProjects/Results/1.png')
 # <codecell>
 
 from sklearn.ensemble import RandomForestClassifier as RF
-clf = RF(min_samples_split = 20)
-clf.fit(X,y)
-qimbs.Forest2Txt(clf, X.ix[0:100,:],'/home/user1/Desktop/Share2Windows')
-
-# <codecell>
-
-t=clf.estimators_[0].tree_
-from sklearn.externals.six import StringIO  
-import pydot
-from sklearn import tree
-out = StringIO() 
-tree.export_graphviz(t, out_file=out) 
-#print out.getvalue()
-graph = pydot.graph_from_dot_data(out.getvalue()) 
-graph.write_pdf("t.pdf") 
-
-# <codecell>
-
-clf.classes_
-
-# <codecell>
-
-X.head()
-
-# <codecell>
-
-fdf.ix[0,:]
-
-# <codecell>
-
-imbalanceMsg.ix[0,:]
-
-# <codecell>
-
+clf = RF(min_samples_split = X.shape[0]*0.05)
+clf.fit(X[fi['Feature'][:10]],y)
+qimbs.Forest2Txt(clf, X[fi['Feature'][:10]].ix[0:100,:],'/home/user1/Desktop/Share2Windows')
 
