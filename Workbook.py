@@ -20,12 +20,7 @@ for i in range(5,7):
     df = df.append(qimbs.import_month(i))
     print i
 print df.shape
-
-# <codecell>
-
 df.index = range(df.shape[0])
-
-# <codecell>
 
 #Adding Timestamp column
 df = qimbs.create_timestamp(df)
@@ -34,9 +29,6 @@ df = qimbs.create_timestamp(df)
 
 #Getting imbalance info
 imbalanceMsg = qimbs.get_imbelanceMSG2(df,0)
-
-# <codecell>
-
 imbalanceMsg = imbalanceMsg[
     (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 0.2 * 
     (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) ]
@@ -101,6 +93,7 @@ print list(X.columns[fs.ranking_==1])
 # <codecell>
 
 #Lets see features importance and try to reduce the number of feature for RF algo
+from sklearn.ensemble import RandomForestClassifier as RF
 clf = RF(min_samples_split=0.1*X.shape[0])
 clf.fit(X,y)
 
@@ -116,7 +109,7 @@ geom_point() + geom_text(vjust=0.005)
 # <codecell>
 
 print 'Main features are:'
-for f in list(fi['Feature'][:10]):
+for f in list(fi['Feature'][:12]):
     print '%s  %s' %(f,Features[f])
 
 # <codecell>
@@ -183,8 +176,7 @@ xlab('n important features selected')+ylab('Error')+ggtitle('Features importance
 # <codecell>
 
 #Lets run RF with les features
-qimbs.OneModelResults(RF, X[fi['Feature'][:10]],y, ERRORS,dates,datesDF,n_ensembles=10,\
-                      test_size_ensemble=0.2)
+qimbs.OneModelResults(RF, X[fi['Feature'][:12]],y, ERRORS,dates,datesDF)
 
 # <codecell>
 
@@ -234,7 +226,8 @@ ggplot(result0, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result0.P
 # <codecell>
 
 #LR
-Signals =  qimbs.get_signals1(imbalanceMsg,X,y,LR,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
+from sklearn.linear_model import LogisticRegression as LR
+Signals =  qimbs.get_signals1(imbalanceMsg,X,y,LR,dates,datesDF)
 Symbols = sorted(list(set(df.Symbol)))
 SymbolsInd=dict()
 for i in range(len(Symbols)):
@@ -247,7 +240,7 @@ ggplot(result1, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result1.P
 # <codecell>
 
 #RandomForest
-Signals =  qimbs.get_signals1(imbalanceMsg,X[fi['Feature'][:10]],y,RF,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
+Signals =  qimbs.get_signals1(imbalanceMsg,X[fi['Feature'][:10]],y,RF,dates,datesDF)
 Symbols = sorted(list(set(df.Symbol)))
 SymbolsInd=dict()
 for i in range(len(Symbols)):
@@ -260,7 +253,8 @@ ggplot(result2, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.P
 # <codecell>
 
 #SVC
-Signals =  qimbs.get_signals1(imbalanceMsg, X[fi['Feature'][:10]],y,SVC,dates,datesDF,n_ensembles=5, test_size_ensemble=0.2)
+from sklearn.svm import SVC
+Signals =  qimbs.get_signals1(imbalanceMsg, X[fi['Feature'][:10]],y,SVC,dates,datesDF)
 Symbols = sorted(list(set(df.Symbol)))
 SymbolsInd=dict()
 for i in range(len(Symbols)):
@@ -281,4 +275,7 @@ from sklearn.ensemble import RandomForestClassifier as RF
 clf = RF(min_samples_split = X.shape[0]*0.05)
 clf.fit(X[fi['Feature'][:10]],y)
 qimbs.Forest2Txt(clf, X[fi['Feature'][:10]].ix[0:100,:],'/home/user1/Desktop/Share2Windows')
+
+# <codecell>
+
 

@@ -435,10 +435,6 @@ def create_features3(imbalanceMsg):
     fdf['D555'] = (imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/(1+imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
     Features['D555'] = '(ImbRef(9.28)-Ask(9.28))/1+Spread'
     
-    
-    
-    
-    
     fdf['D7'] = 100*(imbalanceMsg.ImbRef/imbalanceMsg.PrevCLC_P-1)
     Features['D7'] = 'ImbRef(9.28)/CloseCross(day before)-1'
     
@@ -463,6 +459,115 @@ def create_features3(imbalanceMsg):
     Features['a14'] = 'Sign of Imbalance'
     
     fdf.index = range(fdf.shape[0])
+    
+    return fdf, Features
+
+def create_features4(imbalanceMsg):  
+    #Creating features for algorithm
+    import numpy
+    fdf = pd.DataFrame()
+    Features = dict()
+
+    fdf['Symbol'] = imbalanceMsg.Symbol
+    fdf['Date'] = imbalanceMsg.Date
+
+    fdf['Move'] = imbalanceMsg.Move
+    Features['Move'] = 'Move'
+    
+    fdf['CMove'] = imbalanceMsg.Move
+    fdf.CMove = 0
+    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.05] = 3
+    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.02) & 
+              (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.05)] = 2
+    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0)
+              & (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.02)] = 1
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.05)] = -3
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.02)
+              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.05)] = -2
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0)
+              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.02)] = -1
+    Features['CMove'] = 'CMove'
+    
+    fdf['0'] = np.sign(imbalanceMsg.ImbShares)
+    Features['0'] = 'Side'
+       
+    fdf['1'] = imbalanceMsg.Bid_P-(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    Features['1'] = 'Bid-Spread'
+    
+    fdf['2'] = imbalanceMsg.Bid_P
+    Features['2'] = 'Bid'
+       
+    fdf['3'] = imbalanceMsg.Ask_P
+    Features['3'] = 'Ask'
+    
+    fdf['4'] = imbalanceMsg.Ask_P + (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    Features['4'] = 'Ask+Spread'
+    
+    fdf['5'] = imbalanceMsg.ImbRef
+    Features['5'] = 'Ref'
+    
+    fdf['6'] = imbalanceMsg.ImbCBC
+    Features['6'] = 'Near'
+    
+    fdf['7'] = imbalanceMsg.ImbFar
+    Features['7'] = 'Far'
+    
+    fdf['8'] = imbalanceMsg.PrevCLC_P
+    Features['8'] = 'Close'
+    
+    fdf['9'] = imbalanceMsg.ImbRef-0.05
+    Features['9'] = 'Ref-1'
+    
+    fdf['10'] = imbalanceMsg.ImbRef+0.05
+    Features['10'] = 'Ref+1'
+    
+    fdf['11'] = imbalanceMsg.PrevCLC_P-0.05
+    Features['11'] = 'Close-1'
+    
+    fdf['12'] = imbalanceMsg.PrevCLC_P+0.05
+    Features['12'] = 'Close+1'
+    
+    fdf['13'] = imbalanceMsg.Bid_P-0.05
+    Features['13'] = 'Bid-1'
+    
+    fdf['14'] = imbalanceMsg.Bid_P+0.05
+    Features['14'] = 'Bid+1'
+    
+    fdf['15'] = imbalanceMsg.Ask_P-0.05
+    Features['15'] = 'Ask-1'
+    
+    fdf['16'] = imbalanceMsg.Ask_P+0.05
+    Features['16'] = 'Ask+1'
+    
+    fdf['17'] = imbalanceMsg.ImbRef+(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    Features['17'] = 'Ref+Spread'
+    
+    fdf['18'] = imbalanceMsg.ImbRef-(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    Features['18'] = 'Ref-Spread'
+    
+    fdf['19'] = imbalanceMsg.ImbRef-0.02
+    Features['19'] = 'Ref-1'
+    
+    fdf['20'] = imbalanceMsg.ImbRef+0.02
+    Features['20'] = 'Ref+1'
+    
+    fdf['21'] = imbalanceMsg.PrevCLC_P-0.02
+    Features['21'] = 'Close-1'
+    
+    fdf['22'] = imbalanceMsg.PrevCLC_P+0.02
+    Features['22'] = 'Close+1'
+    
+    fdf['23'] = imbalanceMsg.Bid_P-0.02
+    Features['23'] = 'Bid-1'
+    
+    fdf['24'] = imbalanceMsg.Bid_P+0.02
+    Features['24'] = 'Bid+1'
+    
+    fdf['25'] = imbalanceMsg.Ask_P-0.02
+    Features['25'] = 'Ask-1'
+    
+    fdf['26'] = imbalanceMsg.Ask_P+0.02
+    Features['26'] = 'Ask+1'
     
     return fdf, Features
 
@@ -578,21 +683,20 @@ def get_imbelanceMSG2(df,nImb):
     imbalanceMsg.Move = 0
     imbalanceMsg.Move[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P] = 1
     imbalanceMsg.Move[imbalanceMsg.OPC_P<imbalanceMsg.Bid_P] = -1
-    
-    return imbalanceMsg   
-    
+       
     return imbalanceMsg   
 
 # <codecell>
 
-def Precision_Recall(cm):
+def Precision_Recall(cm, labels):
     m = cm.shape[0]
     sums1 = cm.sum(axis=1);
     sums2 = cm.sum(axis=0);
     precision = 0
     s1 = 0
     s2 = 0
-    for i in range(1,m):
+    for i in range(m):
+        if labels[i] == 0: continue;
         precision +=  cm[i,i]
         s1 += sums1[i]
         s2 += sums2[i]
@@ -600,6 +704,48 @@ def Precision_Recall(cm):
     return precision/s2, precision/s1, 2*(precision/s1 * precision/s2)/(precision/s2 + precision/s1)
 
 # <codecell>
+
+def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
+    from sklearn.metrics import confusion_matrix
+    from sklearn.cross_validation import train_test_split
+    from sklearn.svm import SVC
+    from sklearn.linear_model import LogisticRegression as LR
+    import numpy
+    
+    labels =  numpy.sort(list(set(y)))
+    test_cm = np.zeros((len(labels),len(labels)))
+    train_cm = np.zeros((len(labels),len(labels)))
+    
+    for i in range(n_folds):  
+        r = range(len(dates))
+        np.random.shuffle(r)
+        test_days = r[:test_size] 
+        train_days = r[test_size:] 
+               
+        Xtrain = X.ix[datesDF.ix[train_days],:]
+        Xtest = X.ix[datesDF.ix[test_days],:]
+        ytrain = y.ix[datesDF.ix[train_days]]
+        ytest = y.ix[datesDF.ix[test_days]]
+                            
+        if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
+            clf = clf_class(class_weight='auto')
+        else:
+            clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
+                    
+        clf.fit(Xtrain,ytrain)
+
+        probaTest = clf.predict_proba(Xtest).astype(float)
+        probaTrain = clf.predict_proba(Xtrain).astype(float)
+          
+        ypred = clf.classes_[numpy.argmax(probaTest,axis=1)]
+        ypredTrain = clf.classes_[numpy.argmax(probaTrain,axis=1)]    
+
+        test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+        train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
+        
+    test_pr = Precision_Recall(test_cm, labels)
+    train_pr = Precision_Recall(train_cm, labels)    
+    return 1-train_pr[2], 1-test_pr[2], test_cm
 
 def dates_tmp_df(fdf):
     import numpy
@@ -627,8 +773,9 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     from sklearn import preprocessing
     from sklearn.svm import SVC
     from sklearn.linear_model import LogisticRegression as LR
+    import numpy
     
-    labels = list(set(y))
+    labels =  numpy.sort(list(set(y)))
     test_cm = np.zeros((len(labels),len(labels)))
     train_cm = np.zeros((len(labels),len(labels)))
     testError = 0
@@ -658,16 +805,12 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
             for j in range(n_ensembles):  
                 Xtrain_sub, Xtest_sub, ytrain_sub, ytest_sub = train_test_split(Xtrain, ytrain, test_size=test_size_ensemble)
 
-                #scaler = preprocessing.StandardScaler().fit(Xtrain_sub)
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 else:
-                    clf = clf_class(min_samples_split = Xtrain.shape[0]*0.1)
+                    clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
                     
                 clf.fit(Xtrain_sub,ytrain_sub)
-                #print clf.coef_
-                #print '-------------------'
-
 
                 ypred += clf.predict(Xtest).astype(float)/n_ensembles
                 ypredTrain += clf.predict(Xtrain).astype(float)/n_ensembles
@@ -694,18 +837,19 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
         #testError += np.mean(ypred != ytest)/n_folds
         #trainError += np.mean(ypredTrain != ytrain)/n_folds
         
-    test_pr = Precision_Recall(test_cm)
-    train_pr = Precision_Recall(train_cm)    
+    test_pr = Precision_Recall(test_cm, labels)
+    train_pr = Precision_Recall(train_cm, labels)    
     return 1-train_pr[2], 1-test_pr[2], test_cm
 
 def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
+    import numpy
     fig1 = plt.figure(figsize=(15, 5))
     plt.clf()
     ax1 = fig1.add_subplot(1,3,1)
-    trainError, testError, cm = run_cv2(input,target,clf_class,10,1,dates,datesDF,**kwargs)
-    draw_confusion_matrix(cm, [0,1,-1], fig1, ax1)
+    trainError, testError, cm = run_cv_proba(input,target,clf_class,10,1,dates,datesDF,**kwargs)
+    draw_confusion_matrix(cm,  numpy.sort(list(set(target))), fig1, ax1)
     ERRORS.loc[ERRORS.shape[0]] =[str(clf_class).split('.')[-1].strip('>'),trainError,testError]
-    pr = Precision_Recall(cm)
+    pr = Precision_Recall(cm,numpy.sort(list(set(target))))
     print 'Precision - %s, Recall - %s, F_Score - %s' % (pr[0],pr[1],pr[2])
 
     
@@ -715,7 +859,7 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     nDays = len(dates)
     testRange = range(nDays-1)
     for i in testRange: 
-        trainError, testError, cm = run_cv2(input,target,clf_class,10,i+1,dates,datesDF,**kwargs)
+        trainError, testError, cm = run_cv_proba(input,target,clf_class,5,i+1,dates,datesDF,**kwargs)
         #print i,testError
         TrainError.append(trainError)
         TestError.append(testError)
@@ -744,7 +888,7 @@ def run_cvNN(X,y,n_folds,test_size,**kwargs):
     lb = preprocessing.LabelBinarizer()
     lb.fit(y)
     
-    labels = list(set(y))
+    labels =  sort(list(set(y)))
     test_cm = np.zeros((len(labels),len(labels)))
     train_cm = np.zeros((len(labels),len(labels)))
     testError = 0
@@ -791,7 +935,7 @@ def run_cvNN2(X,y,n_folds,threshold,test_size,**kwargs):
     lb = preprocessing.LabelBinarizer()
     lb.fit(y)
     
-    labels = list(set(y))
+    labels =  sort(list(set(y)))
     test_cm = np.zeros((len(labels),len(labels)))
     train_cm = np.zeros((len(labels),len(labels)))
     testError = 0
@@ -866,103 +1010,9 @@ def draw_confusion_matrix(conf_arr, labels, fig, ax):
 
 # <codecell>
 
-def ComplexCLF(X,y,clf_class1,clf_class2,n_folds,test_size,dates,datesDF):
-    from sklearn.cross_validation import train_test_split
-    from sklearn.metrics import confusion_matrix
-    
-    labels = list(set(y))
-    test_cm = np.zeros((len(labels),len(labels)))
-    train_cm = np.zeros((len(labels),len(labels)))
-    testError = 0
-    trainError = 0
-    
-    
-    for i in range(n_folds):  
-        #Split train - test
-        r = range(len(dates))
-        np.random.shuffle(r)
-        test_days = r[:test_size] 
-        train_days = r[test_size:] 
-               
-        Xtrain = X.ix[datesDF.ix[train_days],:]
-        Xtest = X.ix[datesDF.ix[test_days],:]
-        ytrain = y.ix[datesDF.ix[train_days]]
-        ytest = y.ix[datesDF.ix[test_days]]
-        #**************************************
-        
-        #Train first classifier
-        newX=pd.DataFrame()
-        clf1_pool =[]
-        for l in labels:
-            clf1 = clf_class1()
-            clf1.fit(Xtrain,ytrain==l)
-            newX[l] = clf1.predict(Xtrain)        
-            clf1_pool.append(clf1)
-        #**************************************
-        
-        #Train second classifier
-        clf2 = clf_class2()
-        clf2.fit(newX,ytrain)
-        #**************************************
-        
-        ypredTrain = clf2.predict(newX)
-        train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
-           
-        #Get prediction  
-        newX=pd.DataFrame()
-        for i in range(len(labels)):
-            newX[labels[i]] = clf1_pool[i].predict(Xtest)
-        ypred = clf2.predict(newX)
-        #**************************************
-        
-        test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds        
-            
-    test_pr = Precision_Recall(test_cm)
-    train_pr = Precision_Recall(train_cm)    
-    return 1-train_pr[2], 1-test_pr[2], test_cm
-
-def TwoModelsResults(clf_class1,clf_class2, input,target,ERRORS,dates,datesDF):
-    fig1 = plt.figure(figsize=(15, 5))
-    plt.clf()
-    ax1 = fig1.add_subplot(1,3,1)
-    trainError, testError, cm = ComplexCLF(input,target,clf_class1,clf_class2,20,1,dates,datesDF)
-    draw_confusion_matrix(cm, [0,1,-1], fig1, ax1)
-    ERRORS.loc[ERRORS.shape[0]] =\
-    [str(clf_class1).split('.')[-1].strip('>') + ' + ' + str(clf_class2).split('.')[-1].strip('>'),\
-     trainError,testError]
-    pr = Precision_Recall(cm)
-    print 'Precision - %s, Recall - %s, F_Score - %s' % (pr[0],pr[1],pr[2])
-
-    
-    #Show learning curves
-    TrainError=[]
-    TestError=[]
-    nDays = len(dates)
-    testRange = range(nDays-1)
-    for i in testRange: 
-        trainError, testError, cm = ComplexCLF(input,target,clf_class1,clf_class2,20,i,dates,datesDF)
-        TrainError.append(trainError)
-        TestError.append(testError)
-
-    LearningCurves = pd.DataFrame()
-    LearningCurves['Index'] = testRange
-    LearningCurves['Index']+= 1
-    LearningCurves['TrainError'] = TrainError
-    LearningCurves['TestError'] = TestError
-    LearningCurves['Index'] = nDays-LearningCurves['Index']
-    LearningCurves = pd.melt(LearningCurves, id_vars = 'Index', value_vars = ['TestError','TrainError'])
-
-
-    g = ggplot(LearningCurves, aes('Index', 'value', color = 'variable')) + geom_step() + \
-    ggtitle('Learning curves') + xlab("% of data sent to train") + ylab("Error")
-    
-    return g
-
-# <codecell>
-
 def get_signals2(imbalanceMsg,X,y,clf_class1,clf_class2,dates,datesDF):  
     import numpy
-    labels = list(set(y))
+    labels = numpy.sort(list(set(y)))
     
     Signals = imbalanceMsg[['Timestamp','Symbol','Ask_P','Bid_P']]
     Signals['Side'] = numpy.zeros((Signals.shape[0],1))
@@ -1007,7 +1057,7 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
     from sklearn.cross_validation import train_test_split
     from sklearn.svm import SVC
     from sklearn.linear_model import LogisticRegression as LR
-    labels = list(set(y))
+    labels = numpy.sort(list(set(y)))
     
     Signals = imbalanceMsg[['Timestamp','Symbol','Ask_P','Bid_P']]
     Signals['Side'] = numpy.zeros((Signals.shape[0],1))
@@ -1029,7 +1079,7 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 else:
-                    clf = clf_class(min_samples_split = Xtrain.shape[0]*0.1)
+                    clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
                 
                 clf.fit(Xtrain,ytrain)
 
@@ -1045,7 +1095,7 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
                     if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                         clf = clf_class(class_weight='auto')
                     else:
-                        clf = clf_class(min_samples_split = Xtrain.shape[0]*0.1)
+                        clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
                         
                     clf.fit(Xtrain_sub,ytrain_sub)
                     
@@ -1067,6 +1117,70 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
             Signals.Side[datesDF.ix[test_days]] = ypred
         
         
+        
+    Signals.Price[Signals['Side']==1] = Signals.Ask_P[Signals['Side']==1]
+    Signals.Price[Signals['Side']==-1] = Signals.Bid_P[Signals['Side']==-1]
+    Signals = Signals[Signals.Side!=0]
+    Signals = Signals[['Timestamp','Symbol','Price','Side']] 
+    Signals.index = Signals.Timestamp
+    return Signals
+
+def get_signals2(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):  
+    import numpy
+    from sklearn.cross_validation import train_test_split
+    from sklearn.svm import SVC
+    from sklearn.linear_model import LogisticRegression as LR
+    labels = numpy.sort(list(set(y)))
+    
+    Signals = imbalanceMsg[['Timestamp','Symbol','Ask_P','Bid_P']]
+    Signals['Side'] = numpy.zeros((Signals.shape[0],1))
+    Signals['Price'] = Signals.Ask_P   
+    
+    for i in range(int(datesDF.index.max())+1):  
+        train_days = range(len(dates))
+        test_days = i 
+        train_days.remove(i)
+               
+        Xtrain = X.ix[datesDF.ix[train_days],:]
+        Xtest = X.ix[datesDF.ix[test_days],:]
+        ytrain = y.ix[datesDF.ix[train_days]]
+        ytest = y.ix[datesDF.ix[test_days]]
+        
+        if not kwargs.has_key('n_ensembles'):
+                
+            if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
+                clf = clf_class(class_weight='auto')
+            else:
+                clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
+                
+            clf.fit(Xtrain,ytrain)
+
+            Signals.Side[datesDF.ix[test_days]] = clf.numpy.argmax(clf.predict(Xtest))
+            
+        else:
+            n_ensembles = kwargs['n_ensembles']
+            test_size_ensemble = kwargs['test_size_ensemble']
+                
+            ypred = ytest.copy(); ypred[:] = 0
+            for j in range(n_ensembles):  
+                Xtrain_sub, Xtest_sub, ytrain_sub, ytest_sub = train_test_split(Xtrain, ytrain, test_size=test_size_ensemble)
+
+                if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
+                    clf = clf_class(class_weight='auto')
+                else:
+                    clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
+                        
+                clf.fit(Xtrain_sub,ytrain_sub)
+                    
+                ypred += clf.predict(Xtest).astype(float)/n_ensembles
+
+
+            #Averaging of assemblies results
+            ypred[ypred>0.5] = 1
+            ypred[ypred<-0.5] = -1
+            ypred[(ypred!=1) & (ypred!=-1)] = 0
+
+            Signals.Side[datesDF.ix[test_days]] = ypred    
         
     Signals.Price[Signals['Side']==1] = Signals.Ask_P[Signals['Side']==1]
     Signals.Price[Signals['Side']==-1] = Signals.Bid_P[Signals['Side']==-1]

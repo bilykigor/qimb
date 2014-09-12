@@ -26,6 +26,7 @@ for f_name in os.listdir(d):
                           'OrdersTraded':orders,'ValueTraded':valueTraded,'Pps':pps},ignore_index=True)
             print '%s %s %s' % (day,pnl,valueTraded)
             break;
+    file.close()
 df=df[df.SharesTraded>0]
 
 # <codecell>
@@ -33,7 +34,8 @@ df=df[df.SharesTraded>0]
 ggplot(df1,aes('Day','Pnl')) + geom_point(alpha=0.5) + \
 stat_smooth(colour='green', span=0.5) + \
 ggtitle('Stock position < 1000 shares: pnl = %s, mean = %s' % \
-        (df1.Pnl.sum(),df1.Pnl.mean()))
+        (df1.Pnl.sum(),df1.Pnl.mean())) + \
+geom_point(df,aes('Day','Pnl'),alpha=0.5,color='red')
 
 # <codecell>
 
