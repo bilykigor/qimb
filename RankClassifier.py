@@ -18,23 +18,23 @@ reload(qimbs)
 #!Importing data
 df = pd.DataFrame()
 for i in range(5,7):
-    df = df.append(qimbs.import_month(i))
+    df = df.append(qimbs.import_month2(i))
     print i
 print df.shape
-
 df.index = range(df.shape[0])
 
 #Adding Timestamp column
-df = qimbs.create_timestamp(df)
+#df = qimbs.create_timestamp(df)
 
 # <codecell>
 
 #Getting imbalance info
-imbalanceMsg = qimbs.get_imbelanceMSG2(df,0)
+imbalanceMsg = qimbs.get_imbelanceMSG3(df,0)
 imbalanceMsg = imbalanceMsg[
-    (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 0.2 * 
-    (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) ]
+    (imbalanceMsg.nsdq_AP - imbalanceMsg.nsdq_BP < 
+     1.0 * (imbalanceMsg.nsdq_AP + imbalanceMsg.nsdq_BP)*0.5) ]
 imbalanceMsg.index = range(imbalanceMsg.shape[0])
+imbalanceMsg.shape
 
 # <codecell>
 
@@ -43,8 +43,8 @@ fdf,Features = qimbs.create_features4(imbalanceMsg)
 
 # <codecell>
 
-X = fdf[['1','2','3','4','5','6', '7', '8','9','10','11','12','13','14','15','16','17','18',
-         '19','20','21','22','23','24','25','26']]
+X = fdf[['1','2','3','n2','n3','2_2','3_2','4','5','6', '7', '8']]#,'9','10','11','12','13','14','15','16','17','18',
+         #'19','20','21','22','23','24','25','26']]
 
 y = fdf['Move']
 
@@ -67,18 +67,11 @@ qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
 
 # <codecell>
 
-#Apply Random Forest
-qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
-
-# <codecell>
-
-#Apply Random Forest
-qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
-
-# <codecell>
-
-#Apply Random Forest
-qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
+#RandomForest
+Signals =  qimbs.get_signals1(imbalanceMsg,XM,y,RF,dates,datesDF)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
 
 # <codecell>
 
@@ -89,6 +82,58 @@ qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
 
 #RandomForest
 Signals =  qimbs.get_signals1(imbalanceMsg,XM,y,RF,dates,datesDF)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+#Apply Random Forest
+qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
+
+# <codecell>
+
+#RandomForest
+Signals =  qimbs.get_signals1(imbalanceMsg,XM,y,RF,dates,datesDF)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+#Apply Random Forest
+qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
+
+# <codecell>
+
+#RandomForest
+Signals =  qimbs.get_signals1(imbalanceMsg,XM,y,RF,dates,datesDF)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+#Apply Random Forest
+qimbs.OneModelResults(RF,XM,y,ERRORS,dates,datesDF)
+
+# <codecell>
+
+#RandomForest
+Signals =  qimbs.get_signals1(imbalanceMsg,XM,y,RF,dates,datesDF)
+Symbols = sorted(list(set(df.Symbol)))
+SymbolsInd=dict()
+for i in range(len(Symbols)):
+    SymbolsInd[Symbols[i]]=i
+T = zeros((len(Symbols),len(Symbols)))
+TN = zeros((len(Symbols),len(Symbols)))
+result2 = qimbs.get_performance(Signals,df,dates,SymbolsInd,T,TN,0)
+ggplot(result2, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+#RandomForest
+Signals =  qimbs.get_signals_proba(imbalanceMsg,XM,y,RF,dates,datesDF)
 Symbols = sorted(list(set(df.Symbol)))
 SymbolsInd=dict()
 for i in range(len(Symbols)):

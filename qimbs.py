@@ -27,7 +27,7 @@ def import_month(month):
         else:
             d = '%s' % i
         
-        f = '/home/user1/PyProjects/data/2014-%s-%s/CommonAggr_2014-%s-%s.csv' % (m,d,m,d)
+        f = '/home/user1/PyProjects/data_old/2014-%s-%s/CommonAggr_2014-%s-%s.csv' % (m,d,m,d)
         
         if (not os.path.isfile(f)): continue
             
@@ -40,6 +40,42 @@ def import_month(month):
     target_cols = ['Date','Time','Fracs','Symbol','Reason','tSide','tPrice','tShares',
                     'Bid_P', 'Bid_S', 'Ask_P', 'Ask_S', 
                     'ImbRef','ImbCBC', 'ImbFar', 'ImbShares', 'ImbPaired']
+
+    #Get target columts from the data
+    df = df[target_cols]
+    df.index = range(df.shape[0])
+    
+    return df
+
+def import_month2(month):
+    import os.path
+    df=pd.DataFrame()
+    
+    if month<10:
+        m = '0%s' % month
+    else:
+        m = '%s' % month
+    
+    #Read data for the month
+    for i in range (1,32):  
+        if i<10:
+            d = '0%s' % i
+        else:
+            d = '%s' % i
+        
+        f = '/home/user1/PyProjects/data/AggrCommon_2014-%s-%s.csv' % (m,d)
+        
+        if (not os.path.isfile(f)): continue
+            
+        if (df.shape[0]==0):
+            df = pd.read_csv(f, low_memory=False)
+        else:
+            df=df.append(pd.read_csv(f, low_memory=False))
+    
+    #Set target columns
+    target_cols = ['Date','Time','Fracs','Symbol','Reason','tType','tVenue','tSide','tPrice','tShares',
+                    'Bid_P', 'Bid_S', 'Ask_P', 'Ask_S', 'nsdq_BP', 'nsdq_BS', 'nsdq_AP', 'nsdq_AS',
+                    'ImbRef','ImbCBC', 'ImbFar', 'ImbShares', 'ImbPaired', 'Bid2', 'Ask2']
 
     #Get target columts from the data
     df = df[target_cols]
@@ -94,78 +130,7 @@ def visualize(fdf,Features,f,binwidth,scaled):
 # <codecell>
 
 def get_imbelanceMSG(df,nImb):
-    startTime = '9:27:58'
-    endTime = '9:28:03'
-    if nImb==2:
-        startTime = '9:28:03'
-        endTime = '9:28:08'
-    elif nImb==3:
-        startTime = '9:28:08'
-        endTime = '9:28:12'
-    elif nImb==4:
-        startTime = '9:28:12'
-        endTime = '9:28:18'
-    elif nImb==5:
-        startTime = '9:28:18'
-        endTime = '9:28:22'
-    elif nImb==6:
-        startTime = '9:28:22'
-        endTime = '9:28:28'
-    elif nImb==7:
-        startTime = '9:28:28'
-        endTime = '9:28:32'
-    elif nImb==8:
-        startTime = '9:28:32'
-        endTime = '9:28:38'
-    elif nImb==9:
-        startTime = '9:28:38'
-        endTime = '9:28:42'
-    elif nImb==10:
-        startTime = '9:28:42'
-        endTime = '9:28:48'
-    elif nImb==11:
-        startTime = '9:28:48'
-        endTime = '9:28:52'
-    elif nImb==12:
-        startTime = '9:28:52'
-        endTime = '9:28:58'
-    elif nImb==13:
-        startTime = '9:28:58'
-        endTime = '9:29:02'
-    elif nImb==14:
-        startTime = '9:29:02'
-        endTime = '9:29:08'
-    elif nImb==15:
-        startTime = '9:29:08'
-        endTime = '9:29:12'
-    elif nImb==16:
-        startTime = '9:29:12'
-        endTime = '9:29:18'
-    elif nImb==17:
-        startTime = '9:29:18'
-        endTime = '9:29:22'
-    elif nImb==18:
-        startTime = '9:29:22'
-        endTime = '9:29:28'
-    elif nImb==19:
-        startTime = '9:29:28'
-        endTime = '9:29:32'
-    elif nImb==20:
-        startTime = '9:29:32'
-        endTime = '9:29:38'
-    elif nImb==21:
-        startTime = '9:29:38'
-        endTime = '9:29:42'
-    elif nImb==22:
-        startTime = '9:29:42'
-        endTime = '9:29:48'
-    elif nImb==23:
-        startTime = '9:29:48'
-        endTime = '9:29:52'
-    elif nImb==24:
-        startTime = '9:29:52'
-        endTime = '9:29:58'
-
+    (startTime, endTime) = getImbTime(nImb)
     
     imbalanceMsg = df[df.Reason == 'Imbalance'].between_time(startTime,endTime)
     #.between_time('9:29:52','9:29:57')
@@ -395,56 +360,65 @@ def create_features3(imbalanceMsg):
     fdf = pd.DataFrame()
     Features = dict()
 
+    midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
+    bid = imbalanceMsg.Bid_P#nsdq_BP #
+    bidS = imbalanceMsg.Bid_S#nsdq_BS#
+    ref = imbalanceMsg.ImbRef
+    ask = imbalanceMsg.Ask_P#nsdq_AP#
+    askS = imbalanceMsg.Ask_S#nsdq_AS#
+    near = imbalanceMsg.ImbCBC
+    far = imbalanceMsg.ImbFar
+    closeP = imbalanceMsg.PrevCLC_P
+    
     fdf['Symbol'] = imbalanceMsg.Symbol
     fdf['Date'] = imbalanceMsg.Date
 
     fdf['Move'] = imbalanceMsg.Move
     Features['Move'] = 'Move'
        
-    fdf['Bid'] = imbalanceMsg.Bid_P/imbalanceMsg.ImbRef-1
+    fdf['Bid'] = bid/ref-1
     Features['Bid'] = 'Bid(9.28)'
     
-    fdf['Ask'] = imbalanceMsg.Ask_P/imbalanceMsg.ImbRef-1
+    fdf['Ask'] = ask/ref-1
     Features['Ask'] = 'Ask(9.28)'
        
-    fdf['Near'] = imbalanceMsg.ImbCBC/imbalanceMsg.ImbRef-1
+    fdf['Near'] = near/ref-1
     Features['Near'] = 'Near(9.28)'
     
-    fdf['Far'] = imbalanceMsg.ImbFar/imbalanceMsg.ImbRef-1
+    fdf['Far'] = far/ref-1
     Features['Far'] = 'Far(9.28)'
         
-    fdf['PrevCLC'] = imbalanceMsg.PrevCLC_P/imbalanceMsg.ImbRef-1
+    fdf['PrevCLC'] = closeP/ref-1
     Features['PrevCLC'] = 'PrevCLC'
     
-    #================================================================
-    fdf['Spread'] = (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)/imbalanceMsg.ImbRef
+    fdf['Spread'] = (ask - bid)/ref
     Features['Spread'] = '(Ask-Bid) at 9.28'
 
-    fdf['D3'] = 100*(0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)/imbalanceMsg.PrevCLC_P-1)
+    fdf['D3'] = 100*(midP/closeP-1)
     Features['D3'] = 'Mid(9.28)/CloseCross(day before)-1'
     
-    fdf['D4'] = 100*(imbalanceMsg.Bid_P-imbalanceMsg.ImbRef)/imbalanceMsg.PrevCLC_P
+    fdf['D4'] = 100*(bid-ref)/closeP
     Features['D4'] = '(Bid(9.28)-ImbRef(9.28))/CloseCross(day before)'
 
-    fdf['D5'] = 100*(imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/imbalanceMsg.PrevCLC_P
+    fdf['D5'] = 100*(ref-ask)/closeP
     Features['D5'] = '(ImbRef(9.28)-Ask(9.28))/CloseCross(day before)'       
     
-    fdf['D444'] = (imbalanceMsg.Bid_P-imbalanceMsg.ImbRef)/(1+imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    fdf['D444'] = (bid-ref)/(1+ask - bid)
     Features['D444'] = '(Bid(9.28)-ImbRef(9.28))/1+Spread'
 
-    fdf['D555'] = (imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/(1+imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
+    fdf['D555'] = (ref-ask)/(1+ask - bid)
     Features['D555'] = '(ImbRef(9.28)-Ask(9.28))/1+Spread'
     
-    fdf['D7'] = 100*(imbalanceMsg.ImbRef/imbalanceMsg.PrevCLC_P-1)
+    fdf['D7'] = 100*(ref/closeP-1)
     Features['D7'] = 'ImbRef(9.28)/CloseCross(day before)-1'
     
-    fdf['D66'] = 100*(2*imbalanceMsg.ImbRef/(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)-1)
+    fdf['D66'] = 100*(ref/midP-1)
     Features['D66'] = 'ImbRef(9.28)/Mid-1'
 
-    fdf['V1'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/(100*numpy.sign(imbalanceMsg.ImbShares)+imbalanceMsg.ImbShares)
+    fdf['V1'] = (askS - bidS)/(100*numpy.sign(imbalanceMsg.ImbShares)+imbalanceMsg.ImbShares)
     Features['V1'] = '(Ask_S-Bid_S) at 9.28/Imbalance(9.28)'
     
-    fdf['V11'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/(100+imbalanceMsg.ImbPaired)
+    fdf['V11'] = (askS - bidS)/(100+imbalanceMsg.ImbPaired)
     Features['V11'] = '(Ask_S-Bid_S) at 9.28/PairedS(9.28)'
     
     fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
@@ -454,6 +428,173 @@ def create_features3(imbalanceMsg):
     
     fdf['a4'] = fdf['D5']*fdf['D4']
     Features['a4'] = Features['D5'] + ' Multiply ' + Features['D4']
+            
+    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
+    Features['a14'] = 'Sign of Imbalance'
+    
+    fdf.index = range(fdf.shape[0])
+    
+    return fdf, Features
+
+def create_features33(imbalanceMsg):  
+    #Creating features for algorithm
+    import numpy
+    fdf = pd.DataFrame()
+    Features = dict()
+
+    midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
+    bid = imbalanceMsg.Bid_P
+    bidS = imbalanceMsg.Bid_S
+    #nbid = imbalanceMsg.nsdq_BP
+    #nbidS = imbalanceMsg.nsdq_BS
+    #nask = imbalanceMsg.nsdq_AP
+    #naskS = imbalanceMsg.nsdq_AS
+    #bid2 = imbalanceMsg.Bid2
+    #ask2 = imbalanceMsg.Ask2
+    
+    ref = imbalanceMsg.ImbRef
+    ask = imbalanceMsg.Ask_P
+    askS = imbalanceMsg.Ask_S
+    near = imbalanceMsg.ImbCBC
+    far = imbalanceMsg.ImbFar
+    closeP = imbalanceMsg.PrevCLC_P
+    
+    fdf['Symbol'] = imbalanceMsg.Symbol
+    fdf['Date'] = imbalanceMsg.Date
+
+    fdf['Move'] = imbalanceMsg.Move
+    Features['Move'] = 'Move'
+    
+    fdf['Pnl'] = imbalanceMsg.OPC_P/imbalanceMsg.ImbRef-1
+    Features['Pnl'] = 'OPC/Ref-1'
+    
+    fdf['MoveR'] = (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares>0)+\
+     (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares<0)     
+    Features['MoveR'] = 'MoveR'
+    
+    fdf['CMoveR'] = imbalanceMsg.Move
+    fdf.CMoveR = 0
+    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)] = 2
+    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P<=imbalanceMsg.ImbRef)\
+              & (imbalanceMsg.OPC_P>=imbalanceMsg.Ask_P)] = 1
+    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)] = -2
+    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P>=imbalanceMsg.ImbRef)\
+              & (imbalanceMsg.OPC_P<=imbalanceMsg.Bid_P)] = -1   
+    Features['CMoveR'] = 'CMoveR'
+    
+    fdf['CMove'] = imbalanceMsg.Move
+    fdf.CMove = 0
+    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.1] = 2
+    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0)
+              & (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.1)] = 1
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.1)] = -2
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0)
+              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.1)] = -1
+    Features['CMove'] = 'CMove'
+       
+        
+        
+    fdf['Bid'] = bid/ref-1
+    Features['Bid'] = 'Bid(9.28)'
+    
+    fdf['Ask'] = ask/ref-1
+    Features['Ask'] = 'Ask(9.28)'
+    
+        
+    fdf['BidD'] = bid-ref
+    Features['BidD'] = 'BidD'
+    
+    fdf['AskD'] = ask-ref
+    Features['AskD'] = 'AskD'
+    
+    
+    fdf['a1'] = fdf['Bid']*fdf['Ask']
+    Features['a1'] = 'Bid*Ask'
+    
+    
+    #fdf['nBid'] = (bid-nbid)/ref
+    #Features['nBid'] = 'Bid(9.28)'
+    
+    #fdf['nAsk'] = (nask-ask)/ref
+    #Features['nAsk'] = 'Ask(9.28)'
+    
+    
+    
+    #fdf['Bid2'] = bid2/bid-1
+    #Features['Bid2'] = 'Bid(9.28)'
+    
+    #fdf['Ask2'] = ask2/ask-1
+    #Features['Ask2'] = 'Ask(9.28)'
+    
+    
+       
+    fdf['Near'] = near/ref-1
+    Features['Near'] = 'Near(9.28)'
+    
+    fdf['Far'] = far/ref-1
+    Features['Far'] = 'Far(9.28)'
+        
+    fdf['PrevCLC'] = closeP/ref-1
+    Features['PrevCLC'] = 'PrevCLC'
+    
+    fdf['Spread'] = (ask - bid)/ref
+    Features['Spread'] = '(Ask-Bid) at 9.28'
+
+    fdf['D3'] = 100*(midP/closeP-1)
+    Features['D3'] = 'Mid(9.28)/CloseCross(day before)-1'
+    
+    
+    
+    fdf['D4'] = 100*(bid-ref)/closeP
+    Features['D4'] = '(Bid(9.28)-ImbRef(9.28))/CloseCross(day before)'
+
+    fdf['D5'] = 100*(ref-ask)/closeP
+    Features['D5'] = '(ImbRef(9.28)-Ask(9.28))/CloseCross(day before)'       
+    
+    
+    
+    fdf['D444'] = (bid-ref)/(1+ask - bid)
+    Features['D444'] = '(Bid(9.28)-ImbRef(9.28))/1+Spread'
+
+    fdf['D555'] = (ref-ask)/(1+ask - bid)
+    Features['D555'] = '(ImbRef(9.28)-Ask(9.28))/1+Spread'
+    
+    
+    
+    fdf['D7'] = 100*(ref/closeP-1)
+    Features['D7'] = 'ImbRef(9.28)/CloseCross(day before)-1'
+    
+    fdf['D66'] = 100*(ref/midP-1)
+    Features['D66'] = 'ImbRef(9.28)/Mid-1'
+
+    fdf['V1'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+np.abs(imbalanceMsg.ImbShares))
+    Features['V1'] = '(Ask_S-Bid_S) at 9.28/Imbalance(9.28)'
+    
+    fdf['V1n'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+np.abs(imbalanceMsg.ImbShares))
+    Features['V1n'] = 'V1n'
+    
+    fdf['V11'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+imbalanceMsg.ImbPaired)
+    Features['V11'] = '(Ask_S-Bid_S) at 9.28/PairedS(9.28)'
+    
+    fdf['V11n'] =numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+    Features['V11n'] = 'V11n'
+    
+    fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
+    Features['V8'] = 'ImbalanceS(9.28)/PairedS(9.28)'
+    
+    fdf['V8n'] = imbalanceMsg.ImbShares/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+    Features['V8n'] = 'V8n'
+    
+    fdf['V8nn'] = (imbalanceMsg.ImbShares-(askS - bidS))/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+    Features['V8nn'] = 'V8nn'
+         
+    fdf['a3'] = fdf['D3']*fdf['D4']
+    
+    fdf['a4'] = fdf['D5']*fdf['D4']
+    Features['a4'] = Features['D5'] + ' Multiply ' + Features['D4']
+    
+    fdf['a5'] = fdf['D444']*fdf['D555']
+    Features['a5'] = Features['D444'] + ' Multiply ' + Features['D555']
             
     fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
     Features['a14'] = 'Sign of Imbalance'
@@ -476,17 +617,19 @@ def create_features4(imbalanceMsg):
     
     fdf['CMove'] = imbalanceMsg.Move
     fdf.CMove = 0
-    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.05] = 3
+    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.1] = 3
     fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.02) & 
-              (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.05)] = 2
+              (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.1)] = 2
     fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0)
               & (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.02)] = 1
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.05)] = -3
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.1)] = -3
     fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.02)
-              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.05)] = -2
+              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.1)] = -2
     fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0)
               & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.02)] = -1
     Features['CMove'] = 'CMove'
+    
+    
     
     fdf['0'] = np.sign(imbalanceMsg.ImbShares)
     Features['0'] = 'Side'
@@ -514,6 +657,18 @@ def create_features4(imbalanceMsg):
     
     fdf['8'] = imbalanceMsg.PrevCLC_P
     Features['8'] = 'Close'
+    
+    fdf['n2'] = imbalanceMsg.nsdq_BP
+    Features['n2'] = 'nBid'
+       
+    fdf['n3'] = imbalanceMsg.nsdq_AP
+    Features['n3'] = 'nAsk'
+    
+    fdf['2_2'] = imbalanceMsg.Bid2
+    Features['2_2'] = 'Bid2'
+       
+    fdf['3_2'] = imbalanceMsg.Ask2
+    Features['3_2'] = 'Ask2'  
     
     fdf['9'] = imbalanceMsg.ImbRef-0.05
     Features['9'] = 'Ref-1'
@@ -573,7 +728,7 @@ def create_features4(imbalanceMsg):
 
 # <codecell>
 
-def get_imbelanceMSG2(df,nImb):
+def getImbTime(nImb):
     startTime = '9:27:58'
     endTime = '9:28:03'
     if nImb==2:
@@ -645,30 +800,42 @@ def get_imbelanceMSG2(df,nImb):
     elif nImb==24:
         startTime = '9:29:52'
         endTime = '9:29:58'
+    return (startTime,endTime)
 
+def get_imbelanceMSG2(df,nImb):
+    (startTime,endTime) = getImbTime(nImb)
     
-    imbalanceMsg = df[df.Reason == 'Imbalance'].between_time(startTime,endTime)
+    imbalanceMsg = df[df.Reason == 'Imbalance']
     imbalanceMsg = imbalanceMsg[
     (imbalanceMsg.ImbRef>0) & 
     (imbalanceMsg.ImbCBC>0) &
     (imbalanceMsg.ImbFar>0) &
+    (imbalanceMsg.Ask_P>0) &
+    (imbalanceMsg.Bid_P>0) &
     (imbalanceMsg.ImbShares!=0)
     ]
+    imbalanceMsg.index = range(imbalanceMsg.shape[0])
 
-    imbalanceMsg = imbalanceMsg[['Symbol','Bid_P','Bid_S','Ask_P','Ask_S','ImbRef','ImbCBC','ImbFar','ImbShares','ImbPaired']]
-    imbalanceMsg['Date'] = imbalanceMsg.index.date
+    Timestamp = []
+    for i in range(imbalanceMsg.shape[0]):
+        Timestamp.append(datetime.datetime.strptime(imbalanceMsg.Time[i],'%H:%M:%S'))
+
+    imbalanceMsg['Timestamp'] = Timestamp
+    del Timestamp
+    imbalanceMsg = imbalanceMsg.set_index(['Timestamp'])
+    imbalanceMsg = imbalanceMsg.between_time(startTime,endTime)
+    
+    imbalanceMsg = imbalanceMsg[['Date','Symbol','Bid_P','Bid_S','Ask_P','Ask_S','ImbRef','ImbCBC','ImbFar','ImbShares','ImbPaired']]
     imbalanceMsg['Timestamp'] = imbalanceMsg.index
          
     #Getting additional info about previous day
     OPC = df[df.Reason == 'OPG']
-    OPC = OPC[['Symbol','tPrice']]
-    OPC.columns = ['Symbol','OPC_P']
-    OPC['Date'] = OPC.index.date
+    OPC = OPC[['Date','Symbol','tPrice']]
+    OPC.columns = ['Date','Symbol','OPC_P']
     
     prev_CLC = df[df.tSide == 'YDAY']
-    prev_CLC = prev_CLC[['Symbol','tPrice','tShares']]
-    prev_CLC.columns = ['Symbol','PrevCLC_P','PrevCLC_S']
-    prev_CLC['Date'] = prev_CLC.index.date
+    prev_CLC = prev_CLC[['Date','Symbol','tPrice','tShares']]
+    prev_CLC.columns = ['Date','Symbol','PrevCLC_P','PrevCLC_S']
     
     #Adding OPC
     imbalanceMsg = pd.merge(imbalanceMsg, OPC, on=['Symbol','Date'])
@@ -683,6 +850,63 @@ def get_imbelanceMSG2(df,nImb):
     imbalanceMsg.Move = 0
     imbalanceMsg.Move[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P] = 1
     imbalanceMsg.Move[imbalanceMsg.OPC_P<imbalanceMsg.Bid_P] = -1
+    imbalanceMsg.Bid_S = imbalanceMsg.Bid_S.astype(float)
+    imbalanceMsg.PrevCLC_P = imbalanceMsg.PrevCLC_P.astype(float)
+       
+    return imbalanceMsg   
+
+# <codecell>
+
+def get_imbelanceMSG3(df,nImb):
+    (startTime,endTime) = getImbTime(nImb)
+    
+    imbalanceMsg = df[df.Reason == 'Imbalance']
+    imbalanceMsg = imbalanceMsg[
+    (imbalanceMsg.ImbRef>0) & 
+    (imbalanceMsg.ImbCBC>0) &
+    (imbalanceMsg.ImbFar>0) &
+    (imbalanceMsg.ImbShares!=0)
+    ]
+    imbalanceMsg.index = range(imbalanceMsg.shape[0])
+    
+    Timestamp = []
+    for i in range(imbalanceMsg.shape[0]):
+        Timestamp.append(datetime.datetime.strptime(imbalanceMsg.Time[i],'%H:%M:%S'))
+
+    imbalanceMsg['Timestamp'] = Timestamp
+    del Timestamp
+    imbalanceMsg = imbalanceMsg.set_index(['Timestamp'])
+    imbalanceMsg = imbalanceMsg.between_time(startTime,endTime)
+
+    imbalanceMsg = imbalanceMsg[['Date','Symbol','Bid_P','Bid_S','Ask_P','Ask_S',
+                             'ImbRef','ImbCBC','ImbFar','ImbShares','ImbPaired',
+                             'nsdq_BP', 'nsdq_BS', 'nsdq_AP', 'nsdq_AS','Bid2','Ask2']]
+    imbalanceMsg['Timestamp'] = imbalanceMsg.index
+         
+    #Getting additional info about previous day
+    OPC = df[df.tType == 'OPG']
+    OPC = OPC[['Date','Symbol','tPrice']]
+    OPC.columns = ['Date','Symbol','OPC_P']
+    
+    prev_CLC = df[df.tType == 'YDAY']
+    prev_CLC = prev_CLC[['Date','Symbol','tVenue','tPrice']]
+    prev_CLC.columns = ['Date','Symbol','PrevCLC_P','PrevCLC_S']
+    
+    #Adding OPC
+    imbalanceMsg = pd.merge(imbalanceMsg, OPC, on=['Symbol','Date'])
+    imbalanceMsg = pd.merge(imbalanceMsg, prev_CLC, on=['Symbol','Date'])
+
+    #Filtering data with no prev OPC
+    imbalanceMsg = imbalanceMsg[imbalanceMsg.OPC_P>0]
+    imbalanceMsg.index = range(imbalanceMsg.shape[0])    
+    
+    #Adding new feature which reflects price move direction
+    imbalanceMsg['Move'] = imbalanceMsg.Bid_P
+    imbalanceMsg.Move = 0
+    imbalanceMsg.Move[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P] = 1
+    imbalanceMsg.Move[imbalanceMsg.OPC_P<imbalanceMsg.Bid_P] = -1
+    imbalanceMsg.Bid_S = imbalanceMsg.Bid_S.astype(float)
+    imbalanceMsg.PrevCLC_P = imbalanceMsg.PrevCLC_P.astype(float)
        
     return imbalanceMsg   
 
@@ -710,38 +934,52 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     from sklearn.cross_validation import train_test_split
     from sklearn.svm import SVC
     from sklearn.linear_model import LogisticRegression as LR
+    from sklearn.ensemble import GradientBoostingClassifier as GBC
+    from sklearn.ensemble import RandomForestClassifier as RF
     import numpy
     
     labels =  numpy.sort(list(set(y)))
     test_cm = np.zeros((len(labels),len(labels)))
     train_cm = np.zeros((len(labels),len(labels)))
     
-    for i in range(n_folds):  
+    for i in range(n_folds): 
         r = range(len(dates))
         np.random.shuffle(r)
         test_days = r[:test_size] 
         train_days = r[test_size:] 
-               
+
         Xtrain = X.ix[datesDF.ix[train_days],:]
         Xtest = X.ix[datesDF.ix[test_days],:]
         ytrain = y.ix[datesDF.ix[train_days]]
         ytest = y.ix[datesDF.ix[test_days]]
-                            
-        if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
-            clf = clf_class(class_weight='auto')
+            
+        if clf_class!='B':
+            if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
+                clf = clf_class(class_weight='auto')
+            if (type(clf_class()) ==  type(RF())):
+                clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
+            if (type(clf_class()) ==  type(GBC())):
+                clf = clf_class()#min_samples_split = Xtrain.shape[0]*0.05
+
+            clf.fit(Xtrain,ytrain)
+
+            probaTest = clf.predict_proba(Xtest).astype(float)
+            probaTrain = clf.predict_proba(Xtrain).astype(float)
+
+            ypred = clf.classes_[numpy.argmax(probaTest,axis=1)]
+            ypredTrain = clf.classes_[numpy.argmax(probaTrain,axis=1)]  
+
+            test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+            train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
         else:
-            clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
-                    
-        clf.fit(Xtrain,ytrain)
-
-        probaTest = clf.predict_proba(Xtest).astype(float)
-        probaTrain = clf.predict_proba(Xtrain).astype(float)
-          
-        ypred = clf.classes_[numpy.argmax(probaTest,axis=1)]
-        ypredTrain = clf.classes_[numpy.argmax(probaTrain,axis=1)]    
-
-        test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
-        train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
+            ypred = ytest.copy(); ypred[:] = 0
+            ypredTrain = ytrain.copy(); ypredTrain[:] = 0
+            if (any(Xtest.columns=='D4')):
+                ypred[(Xtest.D4>=0)] = 1
+                ypredTrain[(Xtrain.D4>=0)] = 1
+            if (any(Xtest.columns=='D5')):
+                ypred[(Xtest.D5>=0)] = 1
+                ypredTrain[(Xtrain.D5>=0)] = 1
         
     test_pr = Precision_Recall(test_cm, labels)
     train_pr = Precision_Recall(train_cm, labels)    
@@ -773,9 +1011,14 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     from sklearn import preprocessing
     from sklearn.svm import SVC
     from sklearn.linear_model import LogisticRegression as LR
+    from sklearn.ensemble import RandomForestRegressor as RFR
     import numpy
     
-    labels =  numpy.sort(list(set(y)))
+    if (type(clf_class()) !=  type(RFR())):
+        labels =  numpy.sort(list(set(y)))
+    else:
+        labels =  numpy.sort(list(set(np.sign(y))))
+        
     test_cm = np.zeros((len(labels),len(labels)))
     train_cm = np.zeros((len(labels),len(labels)))
     testError = 0
@@ -808,7 +1051,7 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 else:
-                    clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
+                    clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05)
                     
                 clf.fit(Xtrain_sub,ytrain_sub)
 
@@ -816,13 +1059,14 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                 ypredTrain += clf.predict(Xtrain).astype(float)/n_ensembles
 
             #Averaging of assemblies results
-            ypred[ypred>0.5] = 1
-            ypred[ypred<-0.5] = -1
-            ypred[(ypred!=1) & (ypred!=-1)] = 0
+            if (type(clf_class()) !=  type(RFR())):
+                ypred[ypred>0.5] = 1
+                ypred[ypred<-0.5] = -1
+                ypred[(ypred!=1) & (ypred!=-1)] = 0
 
-            ypredTrain[ypredTrain>0.5] = 1
-            ypredTrain[ypredTrain<-0.5] = -1
-            ypredTrain[(ypredTrain!=1) & (ypredTrain!=-1)] = 0
+                ypredTrain[ypredTrain>0.5] = 1
+                ypredTrain[ypredTrain<-0.5] = -1
+                ypredTrain[(ypredTrain!=1) & (ypredTrain!=-1)] = 0
         else:
             ypred = ytest.copy(); ypred[:] = 0
             ypredTrain = ytrain.copy(); ypredTrain[:] = 0
@@ -831,11 +1075,17 @@ def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
             ypredTrain[(Xtrain.a14>0) & (Xtrain.D5>=0)] = 1
             ypredTrain[(Xtrain.a14<0) & (Xtrain.D4>=0)] = -1
         
-
-        test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
-        train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
-        #testError += np.mean(ypred != ytest)/n_folds
-        #trainError += np.mean(ypredTrain != ytrain)/n_folds
+        if (clf_class=='B'):
+            test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+            train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
+        else:
+            if (type(clf_class()) ==  type(RFR())):
+                plt.scatter(ytest,ypred)
+                test_cm += confusion_matrix(np.sign(ytest),np.sign(ypred),labels).astype(float)/n_folds
+                train_cm += confusion_matrix(np.sign(ytrain),np.sign(ypredTrain),labels).astype(float)/n_folds
+            else:
+                test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+                train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
         
     test_pr = Precision_Recall(test_cm, labels)
     train_pr = Precision_Recall(train_cm, labels)    
@@ -1010,48 +1260,6 @@ def draw_confusion_matrix(conf_arr, labels, fig, ax):
 
 # <codecell>
 
-def get_signals2(imbalanceMsg,X,y,clf_class1,clf_class2,dates,datesDF):  
-    import numpy
-    labels = numpy.sort(list(set(y)))
-    
-    Signals = imbalanceMsg[['Timestamp','Symbol','Ask_P','Bid_P']]
-    Signals['Side'] = numpy.zeros((Signals.shape[0],1))
-    Signals['Price'] = Signals.Ask_P   
-    
-    for i in range(int(datesDF.index.max())+1):  
-        train_days = range(len(dates))
-        test_days = i 
-        train_days.remove(i)
-               
-        Xtrain = X.ix[datesDF.ix[train_days],:]
-        Xtest = X.ix[datesDF.ix[test_days],:]
-        ytrain = y.ix[datesDF.ix[train_days]]
-        ytest = y.ix[datesDF.ix[test_days]]
-        
-        clf1_pool =[]
-        newX=pd.DataFrame()
-        for l in labels:
-            clf1 = clf_class1()
-            clf1.fit(Xtrain,ytrain==l)
-            newX[l] = clf1.predict(Xtrain)        
-            clf1_pool.append(clf1)
-        
-        clf2 = clf_class2()
-        clf2.fit(newX,ytrain)
-               
-        newX=pd.DataFrame()
-        for i in range(len(labels)):
-            newX[labels[i]] = clf1_pool[i].predict(Xtest)
-
-        Signals.Side[datesDF.ix[test_days]] = clf2.predict(newX)
-        
-    Signals.Price[Signals['Side']==1] = Signals.Ask_P[Signals['Side']==1]
-    Signals.Price[Signals['Side']==-1] = Signals.Bid_P[Signals['Side']==-1]
-    Signals = Signals[Signals.Side!=0]
-    Signals = Signals[['Timestamp','Symbol','Price','Side']] 
-    Signals.index = Signals.Timestamp
-    return Signals
-
 def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):  
     import numpy
     from sklearn.cross_validation import train_test_split
@@ -1059,27 +1267,28 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
     from sklearn.linear_model import LogisticRegression as LR
     labels = numpy.sort(list(set(y)))
     
-    Signals = imbalanceMsg[['Timestamp','Symbol','Ask_P','Bid_P']]
+    Signals = imbalanceMsg[['Date','Timestamp','Symbol','Ask_P','Bid_P']]
     Signals['Side'] = numpy.zeros((Signals.shape[0],1))
     Signals['Price'] = Signals.Ask_P   
     
-    for i in range(int(datesDF.index.max())+1):  
-        train_days = range(len(dates))
-        test_days = i 
-        train_days.remove(i)
+    
+    if clf_class!='B':
+        for i in range(int(datesDF.index.max())+1):  
+            train_days = range(len(dates))
+            test_days = i 
+            train_days.remove(i)
+
+            Xtrain = X.ix[datesDF.ix[train_days],:]
+            Xtest = X.ix[datesDF.ix[test_days],:]
+            ytrain = y.ix[datesDF.ix[train_days]]
+            ytest = y.ix[datesDF.ix[test_days]]
                
-        Xtrain = X.ix[datesDF.ix[train_days],:]
-        Xtest = X.ix[datesDF.ix[test_days],:]
-        ytrain = y.ix[datesDF.ix[train_days]]
-        ytest = y.ix[datesDF.ix[test_days]]
-        
-        if clf_class!='B':            
             if not kwargs.has_key('n_ensembles'):
                 
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 else:
-                    clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
+                    clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05)
                 
                 clf.fit(Xtrain,ytrain)
 
@@ -1095,7 +1304,7 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
                     if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                         clf = clf_class(class_weight='auto')
                     else:
-                        clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
+                        clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05)
                         
                     clf.fit(Xtrain_sub,ytrain_sub)
                     
@@ -1106,33 +1315,60 @@ def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
                 ypred[ypred>0.5] = 1
                 ypred[ypred<-0.5] = -1
                 ypred[(ypred!=1) & (ypred!=-1)] = 0
+                
 
                 Signals.Side[datesDF.ix[test_days]] = ypred
-        else:
-            ypred = ytest.copy(); ypred[:] = 0
-            #ypred[(Xtest.a14>0)] = 1
-            #ypred[(Xtest.a14<0)] = -1
-            ypred[(Xtest.a14>0) & (Xtest.D5>=0)] = 1
-            ypred[(Xtest.a14<0) & (Xtest.D4>=0)] = -1
-            Signals.Side[datesDF.ix[test_days]] = ypred
-        
+            
+            Signals.Side[(Signals.Side!=0) & (X.a14>0)] = 1
+            Signals.Side[(Signals.Side!=0) & (X.a14<0)] = -1
+    else:
+        ypred = y.copy(); ypred[:] = 0
+        ypred[(X.a14>0) & (X.D5>=0)] = 1
+        ypred[(X.a14<0) & (X.D4>=0)] = -1
+        Signals.Side = ypred
         
         
     Signals.Price[Signals['Side']==1] = Signals.Ask_P[Signals['Side']==1]
     Signals.Price[Signals['Side']==-1] = Signals.Bid_P[Signals['Side']==-1]
     Signals = Signals[Signals.Side!=0]
-    Signals = Signals[['Timestamp','Symbol','Price','Side']] 
+    Signals = Signals[['Date','Timestamp','Symbol','Price','Side']] 
     Signals.index = Signals.Timestamp
     return Signals
 
-def get_signals2(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):  
+def get_signals_clf(imbalanceMsg,X,y,clf,dates,datesDF,**kwargs):  
     import numpy
     from sklearn.cross_validation import train_test_split
     from sklearn.svm import SVC
     from sklearn.linear_model import LogisticRegression as LR
     labels = numpy.sort(list(set(y)))
     
-    Signals = imbalanceMsg[['Timestamp','Symbol','Ask_P','Bid_P']]
+    Signals = imbalanceMsg[['Date','Timestamp','Symbol','Ask_P','Bid_P']]
+    Signals['Side'] = numpy.zeros((Signals.shape[0],1))
+    Signals['Price'] = Signals.Ask_P   
+                       
+    ypred = clf.predict(X).astype(float)
+
+    ypred[ypred>0.5] = 1
+    ypred[ypred<-0.5] = -1
+    ypred[(ypred!=1) & (ypred!=-1)] = 0
+
+    Signals.Side = ypred      
+       
+    Signals.Price[Signals['Side']==1] = Signals.Ask_P[Signals['Side']==1]
+    Signals.Price[Signals['Side']==-1] = Signals.Bid_P[Signals['Side']==-1]
+    Signals = Signals[Signals.Side!=0]
+    Signals = Signals[['Date','Timestamp','Symbol','Price','Side']] 
+    Signals.index = Signals.Timestamp
+    return Signals
+
+def get_signals_proba(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):  
+    import numpy
+    from sklearn.cross_validation import train_test_split
+    from sklearn.svm import SVC
+    from sklearn.linear_model import LogisticRegression as LR
+    labels = numpy.sort(list(set(y)))
+    
+    Signals = imbalanceMsg[['Date','Timestamp','Symbol','Ask_P','Bid_P']]
     Signals['Side'] = numpy.zeros((Signals.shape[0],1))
     Signals['Price'] = Signals.Ask_P   
     
@@ -1145,116 +1381,77 @@ def get_signals2(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):
         Xtest = X.ix[datesDF.ix[test_days],:]
         ytrain = y.ix[datesDF.ix[train_days]]
         ytest = y.ix[datesDF.ix[test_days]]
-        
-        if not kwargs.has_key('n_ensembles'):
-                
-            if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
-                clf = clf_class(class_weight='auto')
-            else:
-                clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
-                
-            clf.fit(Xtrain,ytrain)
-
-            Signals.Side[datesDF.ix[test_days]] = clf.numpy.argmax(clf.predict(Xtest))
-            
+                       
+        if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
+            clf = clf_class(class_weight='auto')
         else:
-            n_ensembles = kwargs['n_ensembles']
-            test_size_ensemble = kwargs['test_size_ensemble']
+            clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05)
                 
-            ypred = ytest.copy(); ypred[:] = 0
-            for j in range(n_ensembles):  
-                Xtrain_sub, Xtest_sub, ytrain_sub, ytest_sub = train_test_split(Xtrain, ytrain, test_size=test_size_ensemble)
+        clf.fit(Xtrain,ytrain)
 
-                if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
-                    clf = clf_class(class_weight='auto')
-                else:
-                    clf = clf_class(n_jobs=2)#min_samples_split = Xtrain.shape[0]*0.1)
-                        
-                clf.fit(Xtrain_sub,ytrain_sub)
-                    
-                ypred += clf.predict(Xtest).astype(float)/n_ensembles
-
-
-            #Averaging of assemblies results
-            ypred[ypred>0.5] = 1
-            ypred[ypred<-0.5] = -1
-            ypred[(ypred!=1) & (ypred!=-1)] = 0
-
-            Signals.Side[datesDF.ix[test_days]] = ypred    
-        
+        Signals.Side[datesDF.ix[test_days]] = clf.classes_[numpy.argmax(clf.predict_proba(Xtest),axis=1)]
+              
+    #Signals.Side[Signals.Side==1] = 0
+    #Signals.Side[Signals.Side==-1] = 0
+    Signals.Side[Signals.Side>0] = 1
+    Signals.Side[Signals.Side<0] = -1
+    
     Signals.Price[Signals['Side']==1] = Signals.Ask_P[Signals['Side']==1]
     Signals.Price[Signals['Side']==-1] = Signals.Bid_P[Signals['Side']==-1]
     Signals = Signals[Signals.Side!=0]
-    Signals = Signals[['Timestamp','Symbol','Price','Side']] 
+    Signals = Signals[['Date','Timestamp','Symbol','Price','Side']] 
     Signals.index = Signals.Timestamp
     return Signals
         
 
 # <codecell>
 
-def get_performance(Signals,df,days,SymbolsInd,T,TN,add=0):
-    days = sorted(list(set(Signals.index.date)))
+def get_performance(Signals,df,days,add=0):
+    #days = sorted(list(set(Signals.index.date)))
     
     PNL=[]
+    NEGPNL=[]
     SDict=dict()
     for day in days:
         dayPnl=[]
+        negdayPnl=[]
         #print '----------------------------------'
         #print day
         #print '----------------------------------'
-        curr_day_signals = Signals[day.strftime("%Y-%m-%d")]
-        data = df[day.strftime("%Y-%m-%d")]
+        curr_day_signals = Signals[Signals.Date==day]
+        data = df[df.Date==day]
         buys = curr_day_signals[curr_day_signals.Side==1]
         buys = buys.sort(['Symbol'])
         sells = curr_day_signals[curr_day_signals.Side==-1]
         sells = sells.sort(['Symbol'])
         
-        endTimestamp = pd.Timestamp('09:30:01')
-        
+        #endTimestamp = pd.Timestamp('09:30:01')
         #print 'BUY'
         for count, row in buys.iterrows():
-            startTimestamp = row[0]
-            
-            symbol = row[1]
-            price = row[2]+add
+            symbol = row[2]
+            price = row[3]+add
+            curr_symbol_data=data[data.Symbol==symbol]#.between_time(startTimestamp,endTimestamp)
 
-            curr_symbol_data=data[data.Symbol==symbol].between_time(startTimestamp,endTimestamp)
-            
             #AskPrices = dict()
             #for i in range(curr_symbol_data.shape[0]):
             #    if curr_symbol_data.Ask_P[i]>price: continue
             #    if (not AskPrices.has_key(curr_symbol_data.Ask_P[i])):
             #        AskPrices[curr_symbol_data.Ask_P[i]] = curr_symbol_data.Ask_S[i]
                     
-            volumeTraded = 1#min(abs(curr_symbol_data.ImbShares[0]),curr_symbol_data.Ask_S[0])
-                           
-            OPC = curr_symbol_data.tPrice[(curr_symbol_data.Reason=='OPG')]
-            #print OPC
-            #continue
-            pnl = volumeTraded*(OPC[0]-price)
-            
-            if SDict.has_key(symbol):
-                SDict[symbol]+=pnl
-            else:
-                SDict[symbol]=pnl
-            
+            volumeTraded = 1#min(abs(curr_symbol_data.ImbShares[0]),curr_symbol_data.Ask_S[0]       
+            OPC = curr_symbol_data.tPrice[(curr_symbol_data.tType=='OPG')]
+            pnl = volumeTraded*(OPC.values[0]-price)    
             dayPnl.append(pnl)
+            if pnl<0:
+                negdayPnl.append(pnl)
+            
             #if pnl<0:
-            #    print ' BUY   %s %s shares at %s SELL at %s PNL %s' % ( symbol,volumeTraded,price,OPC[0],pnl)
-            
-            for s in buys.Symbol:
-                T[SymbolsInd[symbol],SymbolsInd[s]]+=1.0
-            for s in sells.Symbol:
-                T[SymbolsInd[symbol],SymbolsInd[s]]-=1.0
-            
-        #print 'SELL'    
+            #    print ' BUY   %s %s shares at %s SELL at %s PNL %s' % ( symbol,volumeTraded,price,OPC.values[0],pnl)
+             
         for count, row in sells.iterrows():
-            startTimestamp = row[0]
-
-            symbol = row[1]
-            price = row[2]-add
-
-            curr_symbol_data=data[data.Symbol==symbol].between_time(startTimestamp,endTimestamp)
+            symbol = row[2]
+            price = row[3]-add
+            curr_symbol_data=data[data.Symbol==symbol]#.between_time(startTimestamp,endTimestamp)
             
             #BidPrices = dict()
             #for i in range(curr_symbol_data.shape[0]):
@@ -1263,42 +1460,23 @@ def get_performance(Signals,df,days,SymbolsInd,T,TN,add=0):
             #        BidPrices[curr_symbol_data.Bid_P[i]] = curr_symbol_data.Bid_S[i]
             
             volumeTraded = 1#min(abs(curr_symbol_data.ImbShares[0]),curr_symbol_data.Bid_S[0])
-            
-            OPC = curr_symbol_data.tPrice[curr_symbol_data.Reason=='OPG']
-            #print OPC
-            #continue
-            pnl = volumeTraded*(price-OPC[0])
-            
-            if SDict.has_key(symbol):
-                SDict[symbol]+=pnl
-            else:
-                SDict[symbol]=pnl
-                
+            OPC = curr_symbol_data.tPrice[curr_symbol_data.tType=='OPG']
+            pnl = volumeTraded*(price-OPC.values[0])
             dayPnl.append(pnl)
-            #if pnl<0:
-            #    print ' SELL  %s %s shares at %s BUY as %s PNL %s' % ( symbol,volumeTraded,price,OPC[0],pnl) 
-            
-            for s in sells.Symbol:
-                T[SymbolsInd[symbol],SymbolsInd[s]]+=1.0
-            for s in buys.Symbol:
-                T[SymbolsInd[symbol],SymbolsInd[s]]-=1.0
+            if pnl<0:
+                negdayPnl.append(pnl)
                 
+            #if pnl<0:
+            #    print ' SELL  %s %s shares at %s BUY as %s PNL %s' % ( symbol,volumeTraded,price,OPC.values[0],pnl)        
+            
         PNL.append(np.sum(dayPnl))
+        NEGPNL.append(np.sum(negdayPnl))
         print '%s %s' % (day,np.sum(dayPnl))
-        
-    for i in range(T.shape[0]):
-        for j in range(T.shape[0]):
-            TN[i,j]=2.0*T[i,j]/(T[i,i]+T[j,j])
       
     result = pd.DataFrame()
     result['Date'] = days
     result['Pnl'] = PNL
-    print '----------------------------------'
-    keys = sorted(SDict, key=SDict.__getitem__)
-    for key in keys[-10:]:
-        print '%s %s' % (key, SDict[key])
-    print '----------------------------------'
-    print np.sum(PNL)
+    print '%s %s' % (np.sum(NEGPNL),np.sum(PNL))
     return result
 
 # <codecell>
@@ -1310,25 +1488,38 @@ def Tree2Txt(t,fileName):
     f.write(str(t.capacity)+'\n');
     for i in range(t.capacity):
         s= '%d;%f;' % (t.feature[i],t.threshold[i])
-        for j in range(t.n_classes[0]):
-            Sum = sum(t.value[i][0])
-            if Sum>0:
-                s +='%s;' %  str(t.value[i][0][j]/Sum)
-            else:
-                 s +='%s;' % '0'
+        if t.n_classes[0]==1:
+            s +='%s;' % str(t.value[i][0][0])
+        else:
+            for j in range(t.n_classes[0]):
+                Sum = sum(t.value[i][0])
+                if Sum>0:
+                    s +='%s;' %  str(t.value[i][0][j]/Sum)
+                else:
+                     s +='%s;' % '0'
         f.write(s+'\n')
     f.close()
 
 def TreeTest2Txt(clf,X,fileName):
     f = open(fileName, 'w+')
-    proba = clf.predict_proba(X)
-    for i in range(X.shape[0]):
-        s= ''
-        for j in range(X.shape[1]):
-            s +='%s;' %  str(X.ix[i,j])
-        for j in range(proba.shape[1]):
-            s +='%s;' %  str(proba[i,j])
-        f.write(s+'\n')
+    
+    if (clf.estimators_[0].tree_.n_classes[0]==1):
+        proba = clf.predict(X)
+        for i in range(X.shape[0]):
+            s= ''
+            for j in range(X.shape[1]):
+                s +='%s;' %  str(X.ix[i,j])
+            s +='%s;' %  str(proba[i])
+            f.write(s+'\n')
+    else:
+        proba = clf.predict_proba(X)
+        for i in range(X.shape[0]):
+            s= ''
+            for j in range(X.shape[1]):
+                s +='%s;' %  str(X.ix[i,j])
+            for j in range(proba.shape[1]):
+                s +='%s;' %  str(proba[i,j])
+            f.write(s+'\n')
     f.close()
     
 def Forest2Txt(clf,X,Dir):

@@ -23,46 +23,81 @@ print df.shape
 df.index = range(df.shape[0])
 
 #Adding Timestamp column
-df = qimbs.create_timestamp(df)
+#df = qimbs.create_timestamp(df)
 
 # <codecell>
 
 #Getting imbalance info
 imbalanceMsg = qimbs.get_imbelanceMSG2(df,0)
 imbalanceMsg = imbalanceMsg[
-    (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 0.2 * 
-    (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) ]
+    (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
+     1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) ]
 imbalanceMsg.index = range(imbalanceMsg.shape[0])
+imbalanceMsg.shape
+
+# <codecell>
+
+imbalanceMsg_=imbalanceMsg.copy()
+
+# <codecell>
+
+imbalanceMsg_=imbalanceMsg_.append(imbalanceMsg)
+imbalanceMsg=imbalanceMsg_
+imbalanceMsg.index = range(imbalanceMsg.shape[0])
+imbalanceMsg.shape
 
 # <codecell>
 
 #Creating features
-fdf,Features = qimbs.create_features(imbalanceMsg)
-X = fdf[[ 'Spread', 'D1', 'D2', 'D3', 'D4', 'D5','D44', 'D55','D444', 'D555', 'D6', 'D66','D7', 'V1', 'V11',
-         'V2', 'V3', 'V4', 'V5', 'V6', 'V7','V8','V9', 'a1', 'a2', 'a3',
- 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'a10', 'a11', 'a12', 'a13','a14']]
-X['Bias'] = np.ones((X.shape[0],1))
+fdf,Features = qimbs.create_features33(imbalanceMsg)
 
-y = fdf['Move']
+#X = fdf[['Bid','Ask','Near','Far','PrevCLC','Spread',
+# 'D3', 'D4', 'D5', 'D444', 'D555', 'D7', 'D66', 'V1', 'V11', 
+# 'V8', 'a3', 'a4', 'a14','nBid','nAsk','Bid2','Ask2' ]]
+
+X_pos = fdf[fdf.a14>0]
+X_pos.index = range(X_pos.shape[0])
+X_pos=X_pos[['Ask','AskD','Near','Far','Spread',
+ 'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
+ 'V8','V8n','V8nn', 'a1','a4','a5']]
+
+X_neg = fdf[fdf.a14<0]
+X_neg.index = range(X_neg.shape[0])
+X_neg=X_neg[['Bid','BidD','Near','Far','Spread',
+ 'D4',  'D444', 'D66', 'V1','V1n', 'V11',  'V11n',
+ 'V8','V8n','V8nn', 'a1','a4','a5']]
+
+y_pos = imbalanceMsg.OPC_P>imbalanceMsg.Ask_P
+y_pos = y_pos[fdf.a14>0]
+y_pos.index = range(y_pos.shape[0])
+
+y_neg = imbalanceMsg.OPC_P<imbalanceMsg.Bid_P
+y_neg = y_neg[fdf.a14<0]
+y_neg.index = range(y_neg.shape[0])
+
+#yR_pos = imbalanceMsg.OPC_P>imbalanceMsg.ImbRef
+#yR_pos = yR_pos[fdf.a14>0]
+#yR_pos.index = range(yR_pos.shape[0])
+
+#yR_neg = imbalanceMsg.OPC_P<imbalanceMsg.ImbRef
+#yR_neg = yR_neg[fdf.a14<0]
+#yR_neg.index = range(yR_neg.shape[0])
+
+#yCR = fdf['CMoveR']
+
+#ycmove = fdf['CMove']
+
+ypln_pos = imbalanceMsg.OPC_P/imbalanceMsg.Ask_P-1
+ypln_pos = ypln_pos[fdf.a14>0]
+ypln_pos.index = range(ypln_pos.shape[0])
+
+ypln_neg = 1-imbalanceMsg.OPC_P/imbalanceMsg.Bid_P
+ypln_neg = ypln_neg[fdf.a14<0]
+ypln_neg.index = range(ypln_neg.shape[0])
 
 dates = sorted(list(set(fdf.Date)))
-datesDF = qimbs.dates_tmp_df(fdf)
-
-ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
-
-# <codecell>
-
-#Creating features
-fdf,Features = qimbs.create_features3(imbalanceMsg)
-
-X = fdf[['Bid','Ask','Near','Far','PrevCLC','Spread',
- 'D3', 'D4', 'D5', 'D444', 'D555', 'D7', 'D66', 'V1', 'V11', 
- 'V8', 'a3', 'a4', 'a14' ]]
-
-y = fdf['Move']
-
-dates = sorted(list(set(fdf.Date)))
-datesDF = qimbs.dates_tmp_df(fdf)
+datesDF_pos = qimbs.dates_tmp_df(fdf[fdf.a14>0])
+datesDF_neg = qimbs.dates_tmp_df(fdf[fdf.a14<0])
 
 ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
@@ -72,36 +107,48 @@ ggplot(fdf,aes(x='Move')) + geom_histogram(binwidth = 0.05)
 
 # <codecell>
 
-#Benchmark - sell when imb<0, buy when imb>0 
-qimbs.OneModelResults('B', X,y,ERRORS,dates,datesDF)
-
-# <codecell>
-
-#Apply Random Forest
 from sklearn.ensemble import RandomForestClassifier as RF
-print "Random forest:"
-qimbs.OneModelResults(RF, X,y,ERRORS,dates,datesDF)
+qimbs.OneModelResults(RF, X_pos,y_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
-from sklearn import feature_selection
-from sklearn.svm import SVC 
-fs = feature_selection.RFE(estimator=SVC(kernel='linear'),n_features_to_select=5)
-fs.fit(X,y)
-print list(X.columns[fs.ranking_==1])
+qimbs.OneModelResults(RF, X_neg,y_neg,ERRORS,dates,datesDF_neg)
+
+# <codecell>
+
+from sklearn.ensemble import GradientBoostingClassifier as GBC
+qimbs.OneModelResults(GBC, X_pos,y_pos,ERRORS,dates,datesDF_pos)
+
+# <codecell>
+
+qimbs.OneModelResults(GBC, X_neg,y_neg,ERRORS,dates,datesDF_neg)
 
 # <codecell>
 
 #Lets see features importance and try to reduce the number of feature for RF algo
 from sklearn.ensemble import RandomForestClassifier as RF
-clf = RF(min_samples_split=0.1*X.shape[0])
-clf.fit(X,y)
+clf = RF(min_samples_split = X_pos_.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos_,y_pos_)
 
 fi = pd.DataFrame()
-fi['Feature'] = list(X.columns)
+fi['Feature'] = list(X_pos_.columns)
 fi['Impotrance'] = clf.feature_importances_
 fi=fi.sort(columns=['Impotrance'],ascending=False)
-fi['Index'] = range(X.shape[1])
+fi['Index'] = range(X_pos_.shape[1])
+
+ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
+geom_point() + geom_text(vjust=0.005)
+
+# <codecell>
+
+clf = RF(min_samples_split = X_neg_.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_neg_,y_neg_)
+
+fi = pd.DataFrame()
+fi['Feature'] = list(X_neg_.columns)
+fi['Impotrance'] = clf.feature_importances_
+fi=fi.sort(columns=['Impotrance'],ascending=False)
+fi['Index'] = range(X_neg_.shape[1])
 
 ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
 geom_point() + geom_text(vjust=0.005)
@@ -109,7 +156,7 @@ geom_point() + geom_text(vjust=0.005)
 # <codecell>
 
 print 'Main features are:'
-for f in list(fi['Feature'][:12]):
+for f in list(fi['Feature'][:15]):
     print '%s  %s' %(f,Features[f])
 
 # <codecell>
@@ -176,7 +223,7 @@ xlab('n important features selected')+ylab('Error')+ggtitle('Features importance
 # <codecell>
 
 #Lets run RF with les features
-qimbs.OneModelResults(RF, X[fi['Feature'][:12]],y, ERRORS,dates,datesDF)
+qimbs.OneModelResults(RF, X[fi['Feature'][:15]],np.abs(y), ERRORS,dates,datesDF)
 
 # <codecell>
 
@@ -184,13 +231,13 @@ qimbs.OneModelResults(RF, X[fi['Feature'][:12]],y, ERRORS,dates,datesDF)
 from sklearn.linear_model import LogisticRegression as LR
 print "Logistic Regression:"
 reload(qimbs)
-qimbs.OneModelResults(LR, X,y,ERRORS,dates,datesDF, n_ensembles=5, test_size_ensemble=0.2)
+qimbs.OneModelResults(LR, X_pos,y_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
 from sklearn.svm import SVC
 print "SVC:"
-qimbs.OneModelResults(SVC, X[fi['Feature'][:10]], y,ERRORS,dates,datesDF, n_ensembles=5, test_size_ensemble=0.2)
+qimbs.OneModelResults(SVC, X_pos, yR_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
@@ -209,60 +256,67 @@ ylab("TestError") +geom_text(aes(label='Model'),hjust=0, vjust=0)\
 
 # <codecell>
 
+reload(qimbs)
+
+
+
+
+
+# <codecell>
+
 #Lets compare models in money
 reload(qimbs)
 #Benchmark
 Signals =  qimbs.get_signals1(imbalanceMsg,X,y,'B',dates,datesDF)
-Symbols = sorted(list(set(df.Symbol)))
-SymbolsInd=dict()
-for i in range(len(Symbols)):
-    SymbolsInd[Symbols[i]]=i
-    
-T = zeros((len(Symbols),len(Symbols)))
-TN = zeros((len(Symbols),len(Symbols)))
-result0 = qimbs.get_performance(Signals,df,dates,SymbolsInd,T,TN,0)
-ggplot(result0, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result0.Pnl.sum()) + geom_line()
+result0 = qimbs.get_performance(Signals,df,dates,0)
+result0['I'] = result0.index
+ggplot(result0, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result0.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+#RandomForest
+Signals =  qimbs.get_signals1(imbalanceMsg,X,y,RF,dates,datesDF)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+#RandomForest
+Signals =  qimbs.get_signals1(imbalanceMsg,X,np.abs(y),RF,dates,datesDF)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+reload(qimbs)
+
+# <codecell>
+
+#RandomForest CMove
+Signals =  qimbs.get_signals_proba(imbalanceMsg,X,y,RF,dates,datesDF)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
 
 # <codecell>
 
 #LR
 from sklearn.linear_model import LogisticRegression as LR
 Signals =  qimbs.get_signals1(imbalanceMsg,X,y,LR,dates,datesDF)
-Symbols = sorted(list(set(df.Symbol)))
-SymbolsInd=dict()
-for i in range(len(Symbols)):
-    SymbolsInd[Symbols[i]]=i
-T = zeros((len(Symbols),len(Symbols)))
-TN = zeros((len(Symbols),len(Symbols)))
-result1 = qimbs.get_performance(Signals,df,dates,SymbolsInd,T,TN,0)
-ggplot(result1, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result1.Pnl.sum()) + geom_line()
-
-# <codecell>
-
-#RandomForest
-Signals =  qimbs.get_signals1(imbalanceMsg,X[fi['Feature'][:10]],y,RF,dates,datesDF)
-Symbols = sorted(list(set(df.Symbol)))
-SymbolsInd=dict()
-for i in range(len(Symbols)):
-    SymbolsInd[Symbols[i]]=i
-T = zeros((len(Symbols),len(Symbols)))
-TN = zeros((len(Symbols),len(Symbols)))
-result2 = qimbs.get_performance(Signals,df,dates,SymbolsInd,T,TN,0)
-ggplot(result2, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+result1 = qimbs.get_performance(Signals,df,dates,0)
+result1['I'] = result1.index
+ggplot(result1, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result1.Pnl.sum()) + geom_line()
 
 # <codecell>
 
 #SVC
 from sklearn.svm import SVC
-Signals =  qimbs.get_signals1(imbalanceMsg, X[fi['Feature'][:10]],y,SVC,dates,datesDF)
-Symbols = sorted(list(set(df.Symbol)))
-SymbolsInd=dict()
-for i in range(len(Symbols)):
-    SymbolsInd[Symbols[i]]=i
-T = zeros((len(Symbols),len(Symbols)))
-TN = zeros((len(Symbols),len(Symbols)))
-result1 = qimbs.get_performance(Signals,df,dates,SymbolsInd,T,TN,0)
-ggplot(result1, aes('Date','Pnl')) + geom_point() + ggtitle('Sum=%s' % result1.Pnl.sum()) + geom_line()
+Signals =  qimbs.get_signals1(imbalanceMsg, X[fi['Feature'][:12]],y,SVC,dates,datesDF)
+result3 = qimbs.get_performance(Signals,df,dates,0)
+result3['I'] = result3.index
+ggplot(result1, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result3.Pnl.sum()) + geom_line()
 
 # <codecell>
 
@@ -271,10 +325,121 @@ Image(filename='/home/user/PyProjects/Results/1.png')
 
 # <codecell>
 
-from sklearn.ensemble import RandomForestClassifier as RF
-clf = RF(min_samples_split = X.shape[0]*0.05)
-clf.fit(X[fi['Feature'][:10]],y)
-qimbs.Forest2Txt(clf, X[fi['Feature'][:10]].ix[0:100,:],'/home/user1/Desktop/Share2Windows')
+#RandomForest
+Signals =  qimbs.get_signals_clf(imbalanceMsg,X_neg,y_neg,clf,dates,datesDF_neg)
+result2 = qimbs.get_performance(Signals,df,dates,0)
+result2['I'] = result2.index
+ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.sum()) + geom_line()
+
+# <codecell>
+
+test_size = 2
+r = range(len(dates))
+np.random.shuffle(r)
+test_days = r[:test_size] 
+train_days = r[test_size:] 
+
+Xtrain = X_neg.ix[datesDF_neg.ix[train_days],:]
+Xtest = X_neg.ix[datesDF_neg.ix[test_days],:]
+ytrain = ypln_neg.ix[datesDF_neg.ix[train_days]]
+ytest = ypln_neg.ix[datesDF_neg.ix[test_days]]
+
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor as RFR
+
+f = ytrain<0
+clf = GradientBoostingRegressor(loss='quantile', alpha=0.9, \
+                                min_samples_split = ytrain[f].shape[0]*0.05)
+clf.fit(Xtrain[f], ytrain[f])
+y_lower = clf.predict(Xtest)
+clf.set_params(loss='lad')
+clf.fit(Xtrain[f], ytrain[f])
+y_pred = clf.predict(Xtest)
+print clf.score(Xtest, ytest)
+
+clf = RFR(min_samples_split = ytrain[f].shape[0]*0.05)
+clf.fit(Xtrain[f], ytrain[f])
+y_predR = clf.predict(Xtest)
+print clf.score(Xtest, ytest)
+
+rdf=pd.DataFrame()
+rdf['y'] = ytest;
+rdf['yp'] = y_pred;
+rdf['yl'] = y_lower;
+rdf['yr'] = y_predR;
+
+ggplot(rdf[ytest<0],aes('yp','y')) + geom_point(size=2)+\
+stat_function(fun = lambda x: x, color='red') +\
+geom_point(rdf[rdf.y<0],aes('yr','y'),size=2,color='green')
+#geom_point(rdf[rdf.y<0],aes('y','yl'),size=2,color='red')# +\
+
+# <codecell>
+
+tmp_df = pd.DataFrame()
+tmp_df['yp'] = ypln_pos_
+tmp_df['yn'] = ypln_neg_
+ggplot(tmp_df[(tmp_df.yp>=0) & (tmp_df.yp<1000)],aes(x='yp')) + geom_histogram(binwidth = 0.01,alpha=0.5, color='red') +\
+geom_histogram(tmp_df[(tmp_df.yn>=0) & (tmp_df.yn<1000)],aes(x='yn'),binwidth = 0.01,alpha=0.5,color='green')
+
+# <codecell>
+
+X_pos_.index = range(X_pos_.shape[0])
+y_pos_.index = range(y_pos_.shape[0])
+X_neg_.index = range(X_neg_.shape[0])
+y_neg_.index = range(y_neg_.shape[0])
+ypln_neg_.index = range(ypln_neg_.shape[0])
+ypln_pos_.index = range(ypln_pos_.shape[0])
+clf = RF(min_samples_split = X_pos_.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos_,y_pos_)
+qimbs.Forest2Txt(clf, X_pos_.ix[0:100,:],'/home/user1/Desktop/Share2Windows/Pos')
+clf = RF(min_samples_split = X_neg_.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_neg_,y_neg_)
+qimbs.Forest2Txt(clf, X_neg_.ix[0:100,:],'/home/user1/Desktop/Share2Windows/Neg')
+
+# <codecell>
+
+from sklearn.ensemble import RandomForestRegressor as RFR
+Xpp = X_pos_.copy()
+Xpp = Xpp[ypln_pos_>0]
+Xpp.index = range(Xpp.shape[0])
+
+clf = RFR(min_samples_split = ypln_pos_[ypln_pos_>0].shape[0]*0.05)
+clf.fit(Xpp, ypln_pos_[ypln_pos_>0])
+qimbs.Forest2Txt(clf, Xpp.ix[0:100,:],'/home/user1/Desktop/Share2Windows/PP')
+
+# <codecell>
+
+Xpn = X_pos_.copy()
+Xpn = Xpn[ypln_pos_<0]
+Xpn.index = range(Xpn.shape[0])
+
+clf = RFR(min_samples_split = ypln_pos_[ypln_pos_<0].shape[0]*0.05)
+clf.fit(Xpn, ypln_pos_[ypln_pos_<0])
+qimbs.Forest2Txt(clf, Xpn.ix[0:100,:],'/home/user1/Desktop/Share2Windows/PN')
+
+# <codecell>
+
+Xnp = X_neg_.copy()
+Xnp = Xnp[ypln_neg_>0]
+Xnp.index = range(Xnp.shape[0])
+
+clf = RFR(min_samples_split = ypln_neg_[ypln_neg_>0].shape[0]*0.05)
+clf.fit(Xnp, ypln_neg_[ypln_neg_>0])
+qimbs.Forest2Txt(clf, Xnp.ix[0:100,:],'/home/user1/Desktop/Share2Windows/NP')
+
+# <codecell>
+
+Xnn = X_neg_.copy()
+Xnn = Xnn[ypln_neg_<0]
+Xnn.index = range(Xnn.shape[0])
+
+clf = RFR(min_samples_split = ypln_neg_[ypln_neg_<0].shape[0]*0.05)
+clf.fit(Xnn, ypln_neg_[ypln_neg_<0])
+qimbs.Forest2Txt(clf, Xnn.ix[0:100,:],'/home/user1/Desktop/Share2Windows/NN')
+
+# <codecell>
+
+reload(qimbs)
 
 # <codecell>
 
