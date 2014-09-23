@@ -504,7 +504,7 @@ def create_features33(imbalanceMsg):
     fdf['BidD'] = bid-ref
     Features['BidD'] = 'BidD'
     
-    fdf['AskD'] = ask-ref
+    fdf['AskD'] = ask - ref
     Features['AskD'] = 'AskD'
     
     
@@ -595,6 +595,12 @@ def create_features33(imbalanceMsg):
     
     fdf['a5'] = fdf['D444']*fdf['D555']
     Features['a5'] = Features['D444'] + ' Multiply ' + Features['D555']
+    
+    fdf['a6'] = fdf['D444']*fdf['D444']
+    Features['a6'] = Features['D444'] + ' Multiply ' + Features['D444']
+    
+    fdf['a7'] = fdf['D555']*fdf['D555']
+    Features['a7'] = Features['D555'] + ' Multiply ' + Features['D555']
             
     fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
     Features['a14'] = 'Sign of Imbalance'
@@ -959,7 +965,7 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
             if (type(clf_class()) ==  type(RF())):
                 clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
             if (type(clf_class()) ==  type(GBC())):
-                clf = clf_class()#min_samples_split = Xtrain.shape[0]*0.05
+                clf = clf_class(learning_rate=0.1)#min_samples_split = Xtrain.shape[0]*0.05
 
             clf.fit(Xtrain,ytrain)
 

@@ -16,7 +16,7 @@ reload(qimbs)
 
 #!Importing data
 df = pd.DataFrame()
-for i in range(5,7):
+for i in range(5,6):
     df = df.append(qimbs.import_month(i))
     print i
 print df.shape
@@ -41,10 +41,14 @@ imbalanceMsg_=imbalanceMsg.copy()
 
 # <codecell>
 
-imbalanceMsg_=imbalanceMsg_.append(imbalanceMsg)
+#imbalanceMsg_=imbalanceMsg_.append(imbalanceMsg)
 imbalanceMsg=imbalanceMsg_
 imbalanceMsg.index = range(imbalanceMsg.shape[0])
 imbalanceMsg.shape
+
+# <codecell>
+
+#fdf.to_csv('fdf.cvs')
 
 # <codecell>
 
@@ -127,28 +131,28 @@ qimbs.OneModelResults(GBC, X_neg,y_neg,ERRORS,dates,datesDF_neg)
 
 #Lets see features importance and try to reduce the number of feature for RF algo
 from sklearn.ensemble import RandomForestClassifier as RF
-clf = RF(min_samples_split = X_pos_.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_pos_,y_pos_)
+clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos,y_pos)
 
 fi = pd.DataFrame()
-fi['Feature'] = list(X_pos_.columns)
+fi['Feature'] = list(X_pos.columns)
 fi['Impotrance'] = clf.feature_importances_
 fi=fi.sort(columns=['Impotrance'],ascending=False)
-fi['Index'] = range(X_pos_.shape[1])
+fi['Index'] = range(X_pos.shape[1])
 
 ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
 geom_point() + geom_text(vjust=0.005)
 
 # <codecell>
 
-clf = RF(min_samples_split = X_neg_.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_neg_,y_neg_)
+clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_neg,y_neg)
 
 fi = pd.DataFrame()
-fi['Feature'] = list(X_neg_.columns)
+fi['Feature'] = list(X_neg.columns)
 fi['Impotrance'] = clf.feature_importances_
 fi=fi.sort(columns=['Impotrance'],ascending=False)
-fi['Index'] = range(X_neg_.shape[1])
+fi['Index'] = range(X_neg.shape[1])
 
 ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
 geom_point() + geom_text(vjust=0.005)
@@ -333,7 +337,9 @@ ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.
 
 # <codecell>
 
-test_size = 2
+from sklearn import metrics
+
+test_size = 20
 r = range(len(dates))
 np.random.shuffle(r)
 test_days = r[:test_size] 
@@ -356,11 +362,15 @@ clf.set_params(loss='lad')
 clf.fit(Xtrain[f], ytrain[f])
 y_pred = clf.predict(Xtest)
 print clf.score(Xtest, ytest)
+print "Training error: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
+print "Test     error: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
 
 clf = RFR(min_samples_split = ytrain[f].shape[0]*0.05)
 clf.fit(Xtrain[f], ytrain[f])
 y_predR = clf.predict(Xtest)
 print clf.score(Xtest, ytest)
+print "Training error: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
+print "Test     error: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
 
 rdf=pd.DataFrame()
 rdf['y'] = ytest;
@@ -368,79 +378,96 @@ rdf['yp'] = y_pred;
 rdf['yl'] = y_lower;
 rdf['yr'] = y_predR;
 
-ggplot(rdf[ytest<0],aes('yp','y')) + geom_point(size=2)+\
-stat_function(fun = lambda x: x, color='red') +\
-geom_point(rdf[rdf.y<0],aes('yr','y'),size=2,color='green')
+ggplot(rdf[ytest<0],aes('yr','y')) + geom_point(size=2)+\
+stat_function(fun = lambda x: x, color='red')# +\
+#geom_point(rdf[rdf.y<0],aes('yr','y'),size=2,color='green')
 #geom_point(rdf[rdf.y<0],aes('y','yl'),size=2,color='red')# +\
 
 # <codecell>
 
 tmp_df = pd.DataFrame()
-tmp_df['yp'] = ypln_pos_
-tmp_df['yn'] = ypln_neg_
-ggplot(tmp_df[(tmp_df.yp>=0) & (tmp_df.yp<1000)],aes(x='yp')) + geom_histogram(binwidth = 0.01,alpha=0.5, color='red') +\
-geom_histogram(tmp_df[(tmp_df.yn>=0) & (tmp_df.yn<1000)],aes(x='yn'),binwidth = 0.01,alpha=0.5,color='green')
+tmp_df['yp'] = ypln_pos
+tmp_df['yn'] = ypln_neg
+tmp_df['t'] = X_pos.D555
+tmp_df['t2'] = X_neg.D444
+print np.percentile(tmp_df[(tmp_df.yp>0) & (tmp_df.t>=0)].yp,95)
+print np.percentile(tmp_df[(tmp_df.yn>0) & (tmp_df.t2>=0)].yp,95)
+ggplot(tmp_df[(tmp_df.yp>0) & (tmp_df.t>=0)],aes(x='yp')) + geom_histogram(binwidth = 0.01,alpha=0.5, color='red') +\
+geom_histogram(tmp_df[(tmp_df.yn>0) & (tmp_df.t2>=0)],aes(x='yn'),binwidth = 0.01,alpha=0.5,color='green')
+
 
 # <codecell>
 
-X_pos_.index = range(X_pos_.shape[0])
-y_pos_.index = range(y_pos_.shape[0])
-X_neg_.index = range(X_neg_.shape[0])
-y_neg_.index = range(y_neg_.shape[0])
-ypln_neg_.index = range(ypln_neg_.shape[0])
-ypln_pos_.index = range(ypln_pos_.shape[0])
-clf = RF(min_samples_split = X_pos_.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_pos_,y_pos_)
-qimbs.Forest2Txt(clf, X_pos_.ix[0:100,:],'/home/user1/Desktop/Share2Windows/Pos')
-clf = RF(min_samples_split = X_neg_.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_neg_,y_neg_)
-qimbs.Forest2Txt(clf, X_neg_.ix[0:100,:],'/home/user1/Desktop/Share2Windows/Neg')
+tmp_df = pd.DataFrame()
+tmp_df['yp'] = ypln_pos
+tmp_df['yn'] = ypln_neg
+tmp_df['t'] = X_pos.D555
+tmp_df['t2'] = X_neg.D444
+ggplot(tmp_df[(tmp_df.yp<0) & (tmp_df.t>=0)],aes(x='yp')) + geom_histogram(binwidth = 0.01,alpha=0.5, color='red') +\
+geom_histogram(tmp_df[(tmp_df.yn<0) & (tmp_df.t2>=0)],aes(x='yn'),binwidth = 0.01,alpha=0.5,color='green')
+
+# <codecell>
+
+X_pos.columns
+
+# <codecell>
+
+tmp_df = X_pos.copy()
+tmp_df['yp'] = ypln_pos
+tmp_df['NearN'] =  np.exp(np.exp(tmp_df.Near))
+ggplot(tmp_df,aes(x='a7',y='yp')) + geom_point(size=1)
+
+# <codecell>
+
+clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos,y_pos)
+qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Pos')
+clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_neg,y_neg)
+qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Neg')
 
 # <codecell>
 
 from sklearn.ensemble import RandomForestRegressor as RFR
-Xpp = X_pos_.copy()
-Xpp = Xpp[ypln_pos_>0]
+Xpp = X_pos.copy()
+Xpp = Xpp[ypln_pos>0]
 Xpp.index = range(Xpp.shape[0])
 
-clf = RFR(min_samples_split = ypln_pos_[ypln_pos_>0].shape[0]*0.05)
-clf.fit(Xpp, ypln_pos_[ypln_pos_>0])
-qimbs.Forest2Txt(clf, Xpp.ix[0:100,:],'/home/user1/Desktop/Share2Windows/PP')
+clf = RFR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05)
+clf.fit(Xpp, ypln_pos[ypln_pos>0])
+qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/PP')
 
 # <codecell>
 
-Xpn = X_pos_.copy()
-Xpn = Xpn[ypln_pos_<0]
+Xpn = X_pos.copy()
+Xpn = Xpn[ypln_pos<0]
 Xpn.index = range(Xpn.shape[0])
 
-clf = RFR(min_samples_split = ypln_pos_[ypln_pos_<0].shape[0]*0.05)
-clf.fit(Xpn, ypln_pos_[ypln_pos_<0])
-qimbs.Forest2Txt(clf, Xpn.ix[0:100,:],'/home/user1/Desktop/Share2Windows/PN')
+clf = RFR(min_samples_split = ypln_pos[ypln_pos<0].shape[0]*0.05)
+clf.fit(Xpn, ypln_pos[ypln_pos<0])
+qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/PN')
 
 # <codecell>
 
-Xnp = X_neg_.copy()
-Xnp = Xnp[ypln_neg_>0]
+Xnp = X_neg.copy()
+Xnp = Xnp[ypln_neg>0]
 Xnp.index = range(Xnp.shape[0])
 
-clf = RFR(min_samples_split = ypln_neg_[ypln_neg_>0].shape[0]*0.05)
-clf.fit(Xnp, ypln_neg_[ypln_neg_>0])
-qimbs.Forest2Txt(clf, Xnp.ix[0:100,:],'/home/user1/Desktop/Share2Windows/NP')
+clf = RFR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05)
+clf.fit(Xnp, ypln_neg[ypln_neg>0])
+qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/NP')
 
 # <codecell>
 
-Xnn = X_neg_.copy()
-Xnn = Xnn[ypln_neg_<0]
+Xnn = X_neg.copy()
+Xnn = Xnn[ypln_neg<0]
 Xnn.index = range(Xnn.shape[0])
 
-clf = RFR(min_samples_split = ypln_neg_[ypln_neg_<0].shape[0]*0.05)
-clf.fit(Xnn, ypln_neg_[ypln_neg_<0])
-qimbs.Forest2Txt(clf, Xnn.ix[0:100,:],'/home/user1/Desktop/Share2Windows/NN')
+clf = RFR(min_samples_split = ypln_neg[ypln_neg<0].shape[0]*0.05)
+clf.fit(Xnn, ypln_neg[ypln_neg<0])
+qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/NN')
 
 # <codecell>
 
 reload(qimbs)
-
-# <codecell>
-
 
