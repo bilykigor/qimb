@@ -339,7 +339,7 @@ ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.
 
 from sklearn import metrics
 
-test_size = 20
+test_size = 40
 r = range(len(dates))
 np.random.shuffle(r)
 test_days = r[:test_size] 
@@ -352,36 +352,102 @@ ytest = ypln_neg.ix[datesDF_neg.ix[test_days]]
 
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor as RFR
+from sklearn.linear_model import LinearRegression as LinR
+from sklearn.svm import SVR
 
 f = ytrain<0
-clf = GradientBoostingRegressor(loss='quantile', alpha=0.9, \
-                                min_samples_split = ytrain[f].shape[0]*0.05)
+f2 = ytest<0
+clf = GradientBoostingRegressor(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05)
 clf.fit(Xtrain[f], ytrain[f])
-y_lower = clf.predict(Xtest)
-clf.set_params(loss='lad')
+y_pred = clf.predict(Xtest[f2])
+print "GBR"
+#print "Training mse: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
+#print "Test     mse: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
+print "Training mae: ", metrics.mean_absolute_error(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     mae: ", metrics.mean_absolute_error(clf.predict(Xtest[f2]), ytest[f2])
+print "Training EV: ", metrics.explained_variance_score(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     EV: ", metrics.explained_variance_score(clf.predict(Xtest[f2]), ytest[f2])
+print "Training R2: ", metrics.r2_score(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     R2: ", metrics.r2_score(clf.predict(Xtest[f2]), ytest[f2])
+print "-------------"
+
+
+clf = LinR()#RFR(min_samples_split = ytrain[f].shape[0]*0.05)
 clf.fit(Xtrain[f], ytrain[f])
-y_pred = clf.predict(Xtest)
-print clf.score(Xtest, ytest)
-print "Training error: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
-print "Test     error: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
+y_predLR = clf.predict(Xtest[f2])
+print "LinReg"
+#plt.plot(clf.coef_[:10])
+#print "Training mse: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
+#print "Test     mse: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
+print "Training mae: ", metrics.mean_absolute_error(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     mae: ", metrics.mean_absolute_error(clf.predict(Xtest[f2]), ytest[f2])
+print "Training EV: ", metrics.explained_variance_score(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     EV: ", metrics.explained_variance_score(clf.predict(Xtest[f2]), ytest[f2])
+print "Training R2: ", metrics.r2_score(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     R2: ", metrics.r2_score(clf.predict(Xtest[f2]), ytest[f2])
+print "-------------"
 
 clf = RFR(min_samples_split = ytrain[f].shape[0]*0.05)
 clf.fit(Xtrain[f], ytrain[f])
-y_predR = clf.predict(Xtest)
-print clf.score(Xtest, ytest)
-print "Training error: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
-print "Test     error: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
+y_predR = clf.predict(Xtest[f2])
+print "RF"
+#print "Training mse: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
+#print "Test     mse: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
+print "Training mae: ", metrics.mean_absolute_error(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     mae: ", metrics.mean_absolute_error(clf.predict(Xtest[f2]), ytest[f2])
+print "Training EV: ", metrics.explained_variance_score(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     EV: ", metrics.explained_variance_score(clf.predict(Xtest[f2]), ytest[f2])
+print "Training R2: ", metrics.r2_score(clf.predict(Xtrain[f]), ytrain[f])
+print "Test     R2: ", metrics.r2_score(clf.predict(Xtest[f2]), ytest[f2])
 
 rdf=pd.DataFrame()
-rdf['y'] = ytest;
+rdf['y'] = ytest[f2];
 rdf['yp'] = y_pred;
-rdf['yl'] = y_lower;
 rdf['yr'] = y_predR;
+rdf['yl'] = y_predLR;
 
-ggplot(rdf[ytest<0],aes('yr','y')) + geom_point(size=2)+\
-stat_function(fun = lambda x: x, color='red')# +\
-#geom_point(rdf[rdf.y<0],aes('yr','y'),size=2,color='green')
-#geom_point(rdf[rdf.y<0],aes('y','yl'),size=2,color='red')# +\
+ggplot(rdf,aes('y','yp')) + geom_point(size=1)+\
+stat_function(fun = lambda x: x, color='red') +\
+geom_point(rdf,aes('y','yr'),size=1,color='green') +\
+geom_point(rdf,aes('y','yl'),size=1,color='red')# +\
+
+# <codecell>
+
+reload(qimbs)
+
+# <codecell>
+
+#qimbs.Regression(LinR(), X_neg[ypln_neg>0],ypln_neg[ypln_neg],dates,datesDF_neg)
+Xnp = X_neg[ypln_neg>0].copy()
+
+
+ypln_neg[ypln_neg].copy()
+Xnp.index = range(Xnp.shape[0])
+trainError, testError = qimbs.run_reg(X_neg[ypln_neg>0],ypln_neg[ypln_neg],LinR(),10,1,dates,datesDF_neg)
+
+# <codecell>
+
+Xtrain = X_neg[ypln_neg>0].ix[datesDF_neg.ix[[1,2]],:]
+
+# <codecell>
+
+Xtrain
+
+# <codecell>
+
+f = ytrain<0
+f2 = ytest<0
+clf = GradientBoostingRegressor(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05)
+clf.fit(Xtrain[f], ytrain[f])
+fix, axs = pdep.plot_partial_dependence(clf,Xtrain[f],[(5,0)],feature_names=Xtrain.columns)
+
+# <codecell>
+
+f = ytrain>0
+f2 = ytest>0
+clf = GradientBoostingRegressor(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05)
+clf.fit(Xtrain[f], ytrain[f])
+fix, axs = pdep.plot_partial_dependence(clf,Xtrain[f],[(5,0)],feature_names=Xtrain.columns)
 
 # <codecell>
 
@@ -470,4 +536,7 @@ qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/NN')
 # <codecell>
 
 reload(qimbs)
+
+# <codecell>
+
 

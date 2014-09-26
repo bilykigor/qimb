@@ -1133,6 +1133,58 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     
     return g
 
+def Regression(clf_class, input,target,dates,datesDF):
+    import numpy
+    trainError, testError = run_reg(input,target,clf_class,10,1,dates,datesDF)
+
+    #Show learning curves
+    TrainError=[]
+    TestError=[]
+    nDays = len(dates)
+    testRange = range(nDays-1)
+    for i in testRange: 
+        trainError, testError = run_reg(input,target,clf_class,5,i+1,dates,datesDF)
+        TrainError.append(trainError)
+        TestError.append(testError)
+
+    LearningCurves = pd.DataFrame()
+    LearningCurves['Index'] = testRange
+    LearningCurves['Index']+= 1
+    LearningCurves['TrainError'] = TrainError
+    LearningCurves['TestError'] = TestError
+    LearningCurves['Index'] = nDays-LearningCurves['Index']
+    LearningCurves = pd.melt(LearningCurves, id_vars = 'Index', value_vars = ['TestError','TrainError'])
+
+    g = ggplot(LearningCurves, aes('Index', 'value', color = 'variable')) + geom_step() + \
+    ggtitle('Learning curves') + xlab("% of data sent to train") + ylab("Error")
+    
+    return g
+
+def run_reg(X,y,clf,n_folds,test_size,dates,datesDF):
+    import numpy
+    from sklearn import metrics
+       
+    for i in range(n_folds): 
+        r = range(len(dates))
+        np.random.shuffle(r)
+        test_days = r[:test_size] 
+        train_days = r[test_size:] 
+
+        Xtrain = X.ix[datesDF.ix[train_days],:]
+        Xtest = X.ix[datesDF.ix[test_days],:]
+        ytrain = y.ix[datesDF.ix[train_days]]
+        ytest = y.ix[datesDF.ix[test_days]]
+            
+        clf.fit(Xtrain,ytrain)
+
+        ypred = clf.predict(Xtest)
+        ypredTrain = clf.predict(Xtrain)
+
+        test_pr += metrics.r2_score(clf.predict(Xtest), ypred)/n_folds
+        train_pr += metrics.r2_score(clf.predict(Xtrain), ypredTrain)/n_folds
+    
+    return 1-train_pr[2], 1-test_pr[2]
+
 # <codecell>
 
 def run_cvNN(X,y,n_folds,test_size,**kwargs):
