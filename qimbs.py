@@ -936,11 +936,14 @@ def Precision_Recall(cm, labels):
 # <codecell>
 
 def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
+    import pandas
+    import numpy
     from sklearn.metrics import confusion_matrix
     from sklearn.cross_validation import train_test_split
     from sklearn.svm import SVC
     from sklearn.linear_model import LogisticRegression as LR
     from sklearn.ensemble import GradientBoostingClassifier as GBC
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
     from sklearn.ensemble import RandomForestClassifier as RF
     import numpy
     
@@ -949,6 +952,7 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     train_cm = np.zeros((len(labels),len(labels)))
     
     for i in range(n_folds): 
+        #======Get test_train_split=============
         r = range(len(dates))
         np.random.shuffle(r)
         test_days = r[:test_size] 
@@ -957,27 +961,115 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
         Xtrain = X.ix[datesDF.ix[train_days],:]
         Xtest = X.ix[datesDF.ix[test_days],:]
         ytrain = y.ix[datesDF.ix[train_days]]
-        ytest = y.ix[datesDF.ix[test_days]]
+        ytest = y.ix[datesDF.ix[test_days]] 
+        
+        Xtrain.index = range(Xtrain.shape[0])
+        Xtest.index = range(Xtest.shape[0])
+        ytrain.index = range(ytrain.shape[0])
+        ytest.index = range(ytest.shape[0])
+        #========================================        
             
-        if clf_class!='B':
-            if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
-                clf = clf_class(class_weight='auto')
-            if (type(clf_class()) ==  type(RF())):
-                clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
-            if (type(clf_class()) ==  type(GBC())):
-                clf = clf_class(learning_rate=0.1)#min_samples_split = Xtrain.shape[0]*0.05
+        if clf_class=='NN':    
+            from pybrain.tools.shortcuts import buildNetwork
+            from pybrain.datasets import SupervisedDataSet
+            from pybrain.datasets import ClassificationDataSet
+            from pybrain.structure.modules   import SoftmaxLayer
 
-            clf.fit(Xtrain,ytrain)
+            #Create dataset
+            #ds = SupervisedDataSet(Xtrain.shape[1], 1)
+            ds = ClassificationDataSet(Xtrain.shape[1], 1, nb_classes=2)
+            for j in range(Xtrain.shape[0]):
+                ds.addSample(Xtrain.ix[j,:], ytrain.ix[j,:])
+            ds._convertToOneOfMany( )
 
-            probaTest = clf.predict_proba(Xtest).astype(float)
-            probaTrain = clf.predict_proba(Xtrain).astype(float)
+            #Create net
+            #net = buildNetwork(ds.indim, ds.indim*2, ds.outdim, outclass=SoftmaxLayer)
 
-            ypred = clf.classes_[numpy.argmax(probaTest,axis=1)]
-            ypredTrain = clf.classes_[numpy.argmax(probaTrain,axis=1)]  
+            #varsion1
+            #from pybrain.structure import FeedForwardNetwork
+            #net = FeedForwardNetwork()
+            from pybrain.structure import LinearLayer, SigmoidLayer
+            #inLayer = LinearLayer(ds.indim)
+            #hiddenLayer = SigmoidLayer(ds.indim)
+            #outLayer = SoftmaxLayer(ds.outdim)
+            #net.addInputModule(inLayer)
+            #net.addModule(hiddenLayer)
+            #net.addOutputModule(outLayer)
+            from pybrain.structure import FullConnection
+            #in_to_hidden = FullConnection(inLayer, hiddenLayer)
+            #hidden_to_out = FullConnection(hiddenLayer, outLayer)
+            #net.addConnection(in_to_hidden)
+            #net.addConnection(hidden_to_out)
+            #net.sortModules()
+            
+            #varsion2
+            from pybrain.structure import RecurrentNetwork
+            net = RecurrentNetwork()
+            net.addInputModule(LinearLayer(ds.indim, name='inLayer'))
+            net.addModule(SigmoidLayer(ds.indim, name='hiddenLayer'))
+            net.addOutputModule(SoftmaxLayer(ds.outdim, name='outLayer'))
+            net.addConnection(FullConnection(net['inLayer'], net['hiddenLayer'], name='in_to_hidden'))
+            net.addConnection(FullConnection(net['hiddenLayer'], net['outLayer'], name='hidden_to_out'))
+            net.addRecurrentConnection(FullConnection(net['hiddenLayer'], net['hiddenLayer'], name='hidden_to_hidden'))
+            net.sortModules()
 
-            test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
-            train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
-        else:
+            #Train net
+            from pybrain.supervised.trainers import BackpropTrainer
+            trainer = BackpropTrainer(net, ds, momentum=0.1, verbose=True, weightdecay=0.01)
+            trainer.train()
+            #trainer.trainUntilConvergence(dataset=ds,maxEpochs=10)
+            
+            if False:#combination of NN and COMB
+                #get new features
+                Xtrain_new= numpy.zeros((Xtrain.shape[0],hiddenLayer.dim),float)
+                Xtest_new= numpy.zeros((Xtest.shape[0],hiddenLayer.dim),float)
+
+                for j in range(Xtrain.shape[0]):
+                    to_hidden=numpy.dot(in_to_hidden.params.reshape(hiddenLayer.dim,inLayer.dim),\
+                                        Xtrain.ix[j,:].as_matrix())
+                    Xtrain_new[j,:] = hiddenLayer.activate(to_hidden)
+                for j in range(Xtest.shape[0]):
+                    to_hidden=numpy.dot(in_to_hidden.params.reshape(hiddenLayer.dim,inLayer.dim),\
+                                        Xtest.ix[j,:].as_matrix())
+                    Xtest_new[j,:] = hiddenLayer.activate(to_hidden)
+
+                #Work with new features
+                clf1 = RF(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
+                clf2 = GBC(init='zero')
+
+                clf1.fit(Xtrain_new,ytrain)
+                clf2.fit(Xtrain_new,ytrain)
+
+                probaTest1=clf1.predict_proba(Xtest_new).astype(float)
+                probaTest2=clf2.predict_proba(Xtest_new).astype(float)
+                for i in range(probaTest1.shape[0]):
+                    for j in range(probaTest1.shape[1]):
+                         probaTest1[i,j]=0.5*(probaTest1[i,j]+probaTest2[i,j])
+
+
+                probaTrain1=clf1.predict_proba(Xtrain_new).astype(float)
+                probaTrain2=clf2.predict_proba(Xtrain_new).astype(float)
+                for i in range(probaTrain1.shape[0]):
+                    for j in range(probaTrain1.shape[1]):
+                        probaTrain1[i,j]=0.5*(probaTrain1[i,j]+probaTrain2[i,j])
+
+                ypred = clf1.classes_[numpy.argmax(probaTest1,axis=1)]
+                ypredTrain = clf1.classes_[numpy.argmax(probaTrain1,axis=1)] 
+            else:
+                ypred = ytest.copy()
+                ypredTrain = ytrain.copy()
+
+                for j in range(Xtrain.shape[0]):
+                    ypredTrain.ix[j]=net.activate(Xtrain.ix[j,:])[1]>0.5
+                for j in range(Xtest.shape[0]):
+                    ypred.ix[j]=net.activate(Xtest.ix[j,:])[1]>0.5
+                
+            test_cm += confusion_matrix(ytest.astype(bool),ypred.astype(bool),labels).astype(float)/n_folds
+            train_cm += confusion_matrix(ytrain.astype(bool),ypredTrain.astype(bool),labels).astype(float)/n_folds
+             
+            continue;    
+            
+        if clf_class=='B':
             ypred = ytest.copy(); ypred[:] = 0
             ypredTrain = ytrain.copy(); ypredTrain[:] = 0
             if (any(Xtest.columns=='D4')):
@@ -986,6 +1078,67 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
             if (any(Xtest.columns=='D5')):
                 ypred[(Xtest.D5>=0)] = 1
                 ypredTrain[(Xtrain.D5>=0)] = 1
+            
+            continue;        
+            
+        if (clf_class=='COMB'):
+                clf1 = RF(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
+                clf2 = GBC(init='zero')
+                
+                clf1.fit(Xtrain,ytrain)
+                clf2.fit(Xtrain,ytrain)
+                
+                probaTest1=clf1.predict_proba(Xtest).astype(float)
+                probaTest2=clf2.predict_proba(Xtest).astype(float)
+                for i in range(probaTest1.shape[0]):
+                    for j in range(probaTest1.shape[1]):
+                        probaTest1[i,j]=0.5*(probaTest1[i,j]+probaTest2[i,j])
+
+                        
+                probaTrain1=clf1.predict_proba(Xtrain).astype(float)
+                probaTrain2=clf2.predict_proba(Xtrain).astype(float)
+                for i in range(probaTrain1.shape[0]):
+                    for j in range(probaTrain1.shape[1]):
+                        probaTrain1[i,j]=0.5*(probaTrain1[i,j]+probaTrain2[i,j])
+                                 
+                ypred = clf1.classes_[numpy.argmax(probaTest1,axis=1)]
+                ypredTrain = clf1.classes_[numpy.argmax(probaTrain1,axis=1)]  
+
+                test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+                train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
+            
+                continue;
+            
+        else: 
+                if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
+                    clf = clf_class(class_weight='auto')
+                if (type(clf_class()) ==  type(RF())):
+                    clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
+                if (type(clf_class()) ==  type(GBC())):
+                    clf = clf_class(learning_rate=0.1)#min_samples_split = Xtrain.shape[0]*0.05
+                if (type(clf_class()) ==  type(GBR())):
+                    clf = clf_class(init='zero')
+
+                clf.fit(Xtrain,ytrain)
+            
+                if (type(clf_class()) !=  type(GBR())):
+                    probaTest = clf.predict_proba(Xtest).astype(float)
+                    probaTrain = clf.predict_proba(Xtrain).astype(float)
+
+                    ypred = clf.classes_[numpy.argmax(probaTest,axis=1)]
+                    ypredTrain = clf.classes_[numpy.argmax(probaTrain,axis=1)]  
+
+                    test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+                    train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
+                else:
+                    probaTest = clf.predict(Xtest).astype(float)
+                    probaTrain = clf.predict(Xtrain).astype(float)
+
+                    ypred = probaTest>0.5
+                    ypredTrain = probaTrain>0.5  
+
+                    test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+                    train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds 
         
     test_pr = Precision_Recall(test_cm, labels)
     train_pr = Precision_Recall(train_cm, labels)    
@@ -1108,6 +1261,8 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     pr = Precision_Recall(cm,numpy.sort(list(set(target))))
     print 'Precision - %s, Recall - %s, F_Score - %s' % (pr[0],pr[1],pr[2])
 
+    if clf_class=='NN':
+        return
     
     #Show learning curves
     TrainError=[]
@@ -1133,17 +1288,17 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     
     return g
 
-def Regression(clf_class, input,target,dates,datesDF):
+def Regression(clf_class, input,target,dates,datesDF,side):
     import numpy
-    trainError, testError = run_reg(input,target,clf_class,10,1,dates,datesDF)
-
+    trainError, testError = run_reg(input,target,clf_class,5,1,dates,datesDF,side)
+    print 'TrainError - %s, TestError - %s' % (trainError, testError)
     #Show learning curves
     TrainError=[]
     TestError=[]
     nDays = len(dates)
-    testRange = range(nDays-1)
+    testRange = range(5,nDays/2-1)
     for i in testRange: 
-        trainError, testError = run_reg(input,target,clf_class,5,i+1,dates,datesDF)
+        trainError, testError = run_reg(input,target,clf_class,5,i+1,dates,datesDF,side)
         TrainError.append(trainError)
         TestError.append(testError)
 
@@ -1160,10 +1315,44 @@ def Regression(clf_class, input,target,dates,datesDF):
     
     return g
 
-def run_reg(X,y,clf,n_folds,test_size,dates,datesDF):
+def GetNEstimators(clf_class, input,target,dates,datesDF,side):
+    TrainError=[]
+    TestError=[]
+    nDays = len(dates)
+    testRange = range(90)
+    
+    for i in testRange: 
+        trainError, testError = run_reg_2(input,target,clf_class,1,nDays/10,dates,datesDF,side,i)
+        TrainError.append(trainError)
+        TestError.append(testError)
+
+    LearningCurves = pd.DataFrame()
+    LearningCurves['Index'] = testRange
+    LearningCurves['Index']+= 1
+    LearningCurves['TrainError'] = TrainError
+    LearningCurves['TestError'] = TestError
+    LearningCurves['Index'] = testRange
+    LearningCurves['Index'] = 100+LearningCurves['Index']*10
+    LearningCurves = pd.melt(LearningCurves, id_vars = 'Index', value_vars = ['TestError','TrainError'])
+
+    g = ggplot(LearningCurves, aes('Index', 'value', color = 'variable')) + geom_step() + \
+    ggtitle('Learning curves') + xlab("% of data sent to train") + ylab("Error")
+    
+    return g
+
+def run_reg_2(X,y,clf_class,n_folds,test_size,dates,datesDF,side,nest):
     import numpy
     from sklearn import metrics
-       
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    from sklearn.ensemble import RandomForestRegressor as RFR
+    from sklearn.neighbors import KNeighborsRegressor as KNR
+    
+    X.index = range(X.shape[0])
+    y.index = range(y.shape[0])
+    
+    test_pr = 0.0;
+    train_pr = 0.0;
+    
     for i in range(n_folds): 
         r = range(len(dates))
         np.random.shuffle(r)
@@ -1175,15 +1364,81 @@ def run_reg(X,y,clf,n_folds,test_size,dates,datesDF):
         ytrain = y.ix[datesDF.ix[train_days]]
         ytest = y.ix[datesDF.ix[test_days]]
             
-        clf.fit(Xtrain,ytrain)
+        if side>0:
+            f1 = ytrain>0
+            f2 = ytest>0
+        else:
+            f1 = ytrain<0
+            f2 = ytest<0
+        
+        clf = clf_class(loss = 'huber',n_estimators=100+nest*10)
 
-        ypred = clf.predict(Xtest)
-        ypredTrain = clf.predict(Xtrain)
+        clf.fit(Xtrain[f1], ytrain[f1])
 
-        test_pr += metrics.r2_score(clf.predict(Xtest), ypred)/n_folds
-        train_pr += metrics.r2_score(clf.predict(Xtrain), ypredTrain)/n_folds
+        ypred = clf.predict(Xtest[f2])
+        ypredTrain = clf.predict(Xtrain[f1])
+
+        test_pr += metrics.r2_score(ytest[f2], ypred)/n_folds
+        train_pr += metrics.r2_score(ytrain[f1], ypredTrain)/n_folds
     
-    return 1-train_pr[2], 1-test_pr[2]
+    return 1-train_pr, 1-test_pr
+
+def run_reg(X,y,clf_class,n_folds,test_size,dates,datesDF,side):
+    import numpy
+    from sklearn import metrics
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    from sklearn.ensemble import RandomForestRegressor as RFR
+    from sklearn.neighbors import KNeighborsRegressor as KNR
+    
+    X.index = range(X.shape[0])
+    y.index = range(y.shape[0])
+    
+    test_pr = 0.0;
+    train_pr = 0.0;
+    
+    for i in range(n_folds): 
+        r = range(len(dates))
+        np.random.shuffle(r)
+        test_days = r[:test_size] 
+        train_days = r[test_size:] 
+
+        Xtrain = X.ix[datesDF.ix[train_days],:]
+        Xtest = X.ix[datesDF.ix[test_days],:]
+        ytrain = y.ix[datesDF.ix[train_days]]
+        ytest = y.ix[datesDF.ix[test_days]]
+            
+        if side>0:
+            f1 = ytrain>0
+            f2 = ytest>0
+        else:
+            f1 = ytrain<0
+            f2 = ytest<0
+        
+        if (clf_class!='COMB'):
+            if (type(clf_class()) ==  type(GBR())):
+                clf = clf_class(loss = 'huber')#learning_rate=0.1,
+            if (type(clf_class()) ==  type(KNR())):
+                clf = clf_class(weights = 'uniform',n_neighbors=20)
+            else:
+                clf = clf_class()
+
+            clf.fit(Xtrain[f1], ytrain[f1])
+
+            ypred = clf.predict(Xtest[f2])
+            ypredTrain = clf.predict(Xtrain[f1])
+        else:
+            clf1 = GBR(loss = 'huber',min_samples_split = ytrain[f1].shape[0]*0.05)
+            clf2 = RFR(min_samples_split = ytrain[f1].shape[0]*0.05)
+            clf1.fit(Xtrain[f1], ytrain[f1])
+            clf2.fit(Xtrain[f1], ytrain[f1])
+            
+            ypred = 0.5*(clf1.predict(Xtest[f2])+clf2.predict(Xtest[f2]))
+            ypredTrain =0.5*( clf1.predict(Xtrain[f1])+ clf2.predict(Xtrain[f1]))
+
+        test_pr += metrics.r2_score(ytest[f2], ypred)/n_folds
+        train_pr += metrics.r2_score(ytrain[f1], ypredTrain)/n_folds
+    
+    return 1-train_pr, 1-test_pr
 
 # <codecell>
 
@@ -1539,29 +1794,54 @@ def get_performance(Signals,df,days,add=0):
 
 # <codecell>
 
-def Tree2Txt(t,fileName):
+def Tree2Txt(clf,t,fileName):
     f = open(fileName, 'w+')
     f.write(str(t.n_classes[0])+'\n');
     f.write(str(t.n_features)+'\n');
     f.write(str(t.capacity)+'\n');
-    for i in range(t.capacity):
-        s= '%d;%f;' % (t.feature[i],t.threshold[i])
-        if t.n_classes[0]==1:
-            s +='%s;' % str(t.value[i][0][0])
-        else:
-            for j in range(t.n_classes[0]):
-                Sum = sum(t.value[i][0])
-                if Sum>0:
-                    s +='%s;' %  str(t.value[i][0][j]/Sum)
-                else:
-                     s +='%s;' % '0'
-        f.write(s+'\n')
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    if (type(clf) !=  type(GBR())):
+        for i in range(t.capacity):
+            s= '%d;%f;' % (t.feature[i],t.threshold[i])
+            if t.n_classes[0]==1:
+                s +='%s;' % str(t.value[i][0][0])
+            else:
+                for j in range(t.n_classes[0]):
+                    Sum = sum(t.value[i][0])
+                    if Sum>0:
+                        s +='%s;' %  str(t.value[i][0][j]/Sum)
+                    else:
+                         s +='%s;' % '0'
+            f.write(s+'\n')
+    else:
+        for i in range(t.capacity):
+            s= '%d;%f;' % (t.feature[i],t.threshold[i])
+            s +='%s;' % str(t.value[i][0][0]*clf.learning_rate*clf.n_estimators)
+            f.write(s+'\n')
     f.close()
 
 def TreeTest2Txt(clf,X,fileName):
     f = open(fileName, 'w+')
-    
-    if (clf.estimators_[0].tree_.n_classes[0]==1):
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    if (type(clf) !=  type(GBR())):
+        if (clf.estimators_[0].tree_.n_classes[0]==1):
+            proba = clf.predict(X)
+            for i in range(X.shape[0]):
+                s= ''
+                for j in range(X.shape[1]):
+                    s +='%s;' %  str(X.ix[i,j])
+                s +='%s;' %  str(proba[i])
+                f.write(s+'\n')
+        else:
+            proba = clf.predict_proba(X)
+            for i in range(X.shape[0]):
+                s= ''
+                for j in range(X.shape[1]):
+                    s +='%s;' %  str(X.ix[i,j])
+                for j in range(proba.shape[1]):
+                    s +='%s;' %  str(proba[i,j])
+                f.write(s+'\n')
+    else:
         proba = clf.predict(X)
         for i in range(X.shape[0]):
             s= ''
@@ -1569,26 +1849,26 @@ def TreeTest2Txt(clf,X,fileName):
                 s +='%s;' %  str(X.ix[i,j])
             s +='%s;' %  str(proba[i])
             f.write(s+'\n')
-    else:
-        proba = clf.predict_proba(X)
-        for i in range(X.shape[0]):
-            s= ''
-            for j in range(X.shape[1]):
-                s +='%s;' %  str(X.ix[i,j])
-            for j in range(proba.shape[1]):
-                s +='%s;' %  str(proba[i,j])
-            f.write(s+'\n')
     f.close()
     
 def Forest2Txt(clf,X,Dir):
-    for i in range(clf.n_estimators):
-        Tree2Txt(clf.estimators_[i].tree_,Dir + '/%u.t' % i)
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    if (type(clf) !=  type(GBR())):
+        for i in range(clf.n_estimators):
+            Tree2Txt(clf,clf.estimators_[i].tree_,Dir + '/%u.t' % i)
+    else:
+        for i in range(clf.n_estimators):
+            Tree2Txt(clf,clf.estimators_[i][0].tree_,Dir + '/%u.t' % i)
     TreeTest2Txt(clf,X,Dir + '/test.u')
 
 # <codecell>
 
 def visualize_tree(clf):
-    t=clf.estimators_[0].tree_
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    if (type(clf) !=  type(GBR())):
+        t=clf.estimators_[0].tree_
+    else:
+        t=clf.estimators_[0][0].tree_
     from sklearn.externals.six import StringIO  
     import pydot
     from sklearn import tree
@@ -1597,4 +1877,7 @@ def visualize_tree(clf):
     #print out.getvalue()
     graph = pydot.graph_from_dot_data(out.getvalue()) 
     graph.write_pdf("t.pdf") 
+
+# <codecell>
+
 

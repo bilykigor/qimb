@@ -16,7 +16,7 @@ reload(qimbs)
 
 #!Importing data
 df = pd.DataFrame()
-for i in range(5,6):
+for i in range(5,7):
     df = df.append(qimbs.import_month(i))
     print i
 print df.shape
@@ -41,14 +41,10 @@ imbalanceMsg_=imbalanceMsg.copy()
 
 # <codecell>
 
-#imbalanceMsg_=imbalanceMsg_.append(imbalanceMsg)
+imbalanceMsg_=imbalanceMsg_.append(imbalanceMsg)
 imbalanceMsg=imbalanceMsg_
 imbalanceMsg.index = range(imbalanceMsg.shape[0])
 imbalanceMsg.shape
-
-# <codecell>
-
-#fdf.to_csv('fdf.cvs')
 
 # <codecell>
 
@@ -111,6 +107,22 @@ ggplot(fdf,aes(x='Move')) + geom_histogram(binwidth = 0.05)
 
 # <codecell>
 
+qimbs.OneModelResults('NN', X_pos,y_pos,ERRORS,dates,datesDF_pos)
+
+# <codecell>
+
+qimbs.OneModelResults('NN', X_neg,y_neg,ERRORS,dates,datesDF_neg)
+
+# <codecell>
+
+qimbs.OneModelResults('COMB', X_pos,y_pos,ERRORS,dates,datesDF_pos)
+
+# <codecell>
+
+qimbs.OneModelResults('COMB', X_neg,y_neg,ERRORS,dates,datesDF_neg)
+
+# <codecell>
+
 from sklearn.ensemble import RandomForestClassifier as RF
 qimbs.OneModelResults(RF, X_pos,y_pos,ERRORS,dates,datesDF_pos)
 
@@ -162,6 +174,21 @@ geom_point() + geom_text(vjust=0.005)
 print 'Main features are:'
 for f in list(fi['Feature'][:15]):
     print '%s  %s' %(f,Features[f])
+
+# <codecell>
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # <codecell>
 
@@ -241,7 +268,7 @@ qimbs.OneModelResults(LR, X_pos,y_pos,ERRORS,dates,datesDF_pos)
 
 from sklearn.svm import SVC
 print "SVC:"
-qimbs.OneModelResults(SVC, X_pos, yR_pos,ERRORS,dates,datesDF_pos)
+qimbs.OneModelResults(SVC, X_pos, y_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
@@ -261,6 +288,18 @@ ylab("TestError") +geom_text(aes(label='Model'),hjust=0, vjust=0)\
 # <codecell>
 
 reload(qimbs)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -337,27 +376,167 @@ ggplot(result2, aes('I','Pnl')) + geom_point() + ggtitle('Sum=%s' % result2.Pnl.
 
 # <codecell>
 
-from sklearn import metrics
 
-test_size = 40
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Regression
+
+# <codecell>
+
+test_size = 20
 r = range(len(dates))
 np.random.shuffle(r)
 test_days = r[:test_size] 
 train_days = r[test_size:] 
 
-Xtrain = X_neg.ix[datesDF_neg.ix[train_days],:]
-Xtest = X_neg.ix[datesDF_neg.ix[test_days],:]
-ytrain = ypln_neg.ix[datesDF_neg.ix[train_days]]
-ytest = ypln_neg.ix[datesDF_neg.ix[test_days]]
+Xtrain = X_pos.ix[datesDF_pos.ix[train_days],:]
+Xtest = X_pos.ix[datesDF_pos.ix[test_days],:]
+ytrain = y_pos.ix[datesDF_pos.ix[train_days]]
+ytest = y_pos.ix[datesDF_pos.ix[test_days]]
 
-from sklearn.ensemble import GradientBoostingRegressor
+Xtrain.index = range(Xtrain.shape[0])
+Xtest.index = range(Xtest.shape[0])
+ytrain.index = range(ytrain.shape[0])
+ytest.index = range(ytest.shape[0])
+
+from pybrain.tools.shortcuts import buildNetwork
+from pybrain.datasets import SupervisedDataSet
+from pybrain.datasets import ClassificationDataSet
+from pybrain.structure.modules   import SoftmaxLayer
+
+#Create dataset
+#ds = SupervisedDataSet(Xtrain.shape[1], 1)
+ds = ClassificationDataSet(Xtrain.shape[1], 1, nb_classes=2)
+for j in range(Xtrain.shape[0]):
+    ds.addSample(Xtrain.ix[j,:], ytrain.ix[j,:])
+ds._convertToOneOfMany( )
+
+#Create net
+#from pybrain.structure import FeedForwardNetwork
+#net = FeedForwardNetwork()
+#from pybrain.structure import LinearLayer, SigmoidLayer
+#inLayer = LinearLayer(ds.indim)
+#hiddenLayer = SigmoidLayer(5)
+#outLayer = SoftmaxLayer(ds.outdim)
+#net.addInputModule(inLayer)
+#net.addModule(hiddenLayer)
+#net.addOutputModule(outLayer)
+#from pybrain.structure import FullConnection
+#in_to_hidden = FullConnection(inLayer, hiddenLayer)
+#hidden_to_out = FullConnection(hiddenLayer, outLayer)
+#net.addConnection(in_to_hidden)
+#net.addConnection(hidden_to_out)
+#net.sortModules()
+#net = buildNetwork(ds.indim, 2, ds.outdim, outclass=SoftmaxLayer)
+
+from pybrain.structure import RecurrentNetwork
+net = RecurrentNetwork()
+net.addInputModule(LinearLayer(ds.indim, name='inLayer'))
+net.addModule(SigmoidLayer(ds.indim, name='hiddenLayer'))
+net.addOutputModule(SoftmaxLayer(ds.outdim, name='outLayer'))
+net.addConnection(FullConnection(net['inLayer'], net['hiddenLayer'], name='in_to_hidden'))
+net.addConnection(FullConnection(net['hiddenLayer'], net['outLayer'], name='hidden_to_out'))
+net.addRecurrentConnection(FullConnection(net['hiddenLayer'], net['hiddenLayer'], name='hidden_to_hidden'))
+net.sortModules()
+
+#Train net
+from pybrain.supervised.trainers import BackpropTrainer
+trainer = BackpropTrainer(net, ds, momentum=0.1, verbose=True, weightdecay=0.01)
+
+#for i in range(10):
+#    if i%20==0:
+#        print i
+#    trainer.trainEpochs(1)
+    
+trnerr,testerr = trainer.trainUntilConvergence(dataset=ds,maxEpochs=10)
+plt.plot(trnerr,'b',valerr,'r')
+
+# <codecell>
+
+print net.activate(Xtest.ix[1,:])
+print ytest.ix[1,:]
+
+# <codecell>
+
+to_hidden=numpy.dot(in_to_hidden.params.reshape(hiddenLayer.dim,inLayer.dim),Xtest.ix[0,:].as_matrix())
+
+# <codecell>
+
+to_out=hiddenLayer.activate(to_hidden)
+
+# <codecell>
+
+in_to_hidden.params.reshape(hiddenLayer.dim,inLayer.dim)
+
+# <codecell>
+
+outLayer.activate(numpy.dot(hidden_to_out.params.reshape(outLayer.dim,hiddenLayer.dim),to_out))
+
+# <codecell>
+
+Xtrain_new= zeros(Xtrain.shape,float)
+
+# <codecell>
+
+hiddenLayer.dim
+
+# <codecell>
+
+
+
+outLayer
+
+
+
+
+
+# <codecell>
+
+from sklearn import metrics
+
+test_size = 20
+r = range(len(dates))
+np.random.shuffle(r)
+test_days = r[:test_size] 
+train_days = r[test_size:] 
+
+Xtrain = X_pos.ix[datesDF_pos.ix[train_days],:]
+Xtest = X_pos.ix[datesDF_pos.ix[test_days],:]
+ytrain = ypln_pos.ix[datesDF_pos.ix[train_days]]
+ytest = ypln_pos.ix[datesDF_pos.ix[test_days]]
+
+from sklearn.ensemble import GradientBoostingRegressor as GBR
 from sklearn.ensemble import RandomForestRegressor as RFR
 from sklearn.linear_model import LinearRegression as LinR
+from sklearn.linear_model import SGDRegressor as SGDR
+from sklearn.linear_model import Ridge
 from sklearn.svm import SVR
 
 f = ytrain<0
 f2 = ytest<0
-clf = GradientBoostingRegressor(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05)
+clf = GBR(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05,init='zero')
 clf.fit(Xtrain[f], ytrain[f])
 y_pred = clf.predict(Xtest[f2])
 print "GBR"
@@ -370,7 +549,6 @@ print "Test     EV: ", metrics.explained_variance_score(clf.predict(Xtest[f2]), 
 print "Training R2: ", metrics.r2_score(clf.predict(Xtrain[f]), ytrain[f])
 print "Test     R2: ", metrics.r2_score(clf.predict(Xtest[f2]), ytest[f2])
 print "-------------"
-
 
 clf = LinR()#RFR(min_samples_split = ytrain[f].shape[0]*0.05)
 clf.fit(Xtrain[f], ytrain[f])
@@ -391,25 +569,34 @@ clf = RFR(min_samples_split = ytrain[f].shape[0]*0.05)
 clf.fit(Xtrain[f], ytrain[f])
 y_predR = clf.predict(Xtest[f2])
 print "RF"
-#print "Training mse: ", metrics.mean_squared_error(clf.predict(Xtrain), ytrain)
-#print "Test     mse: ", metrics.mean_squared_error(clf.predict(Xtest), ytest)
 print "Training mae: ", metrics.mean_absolute_error(clf.predict(Xtrain[f]), ytrain[f])
 print "Test     mae: ", metrics.mean_absolute_error(clf.predict(Xtest[f2]), ytest[f2])
 print "Training EV: ", metrics.explained_variance_score(clf.predict(Xtrain[f]), ytrain[f])
 print "Test     EV: ", metrics.explained_variance_score(clf.predict(Xtest[f2]), ytest[f2])
 print "Training R2: ", metrics.r2_score(clf.predict(Xtrain[f]), ytrain[f])
 print "Test     R2: ", metrics.r2_score(clf.predict(Xtest[f2]), ytest[f2])
+print "-------------"
 
 rdf=pd.DataFrame()
 rdf['y'] = ytest[f2];
 rdf['yp'] = y_pred;
 rdf['yr'] = y_predR;
 rdf['yl'] = y_predLR;
+rdf['yall'] = (y_predR+y_pred)/2;
+rdf['i'] = range(rdf.shape[0]);
+rdf['resid'] = rdf['y']-rdf['yr'];
+print "Test     mae: ", metrics.mean_absolute_error(rdf['yall'], rdf['y'])
+print "Test     EV: ", metrics.explained_variance_score(rdf['yall'], rdf['y'])
+print "Test     R2: ", metrics.r2_score(rdf['yall'], rdf['y'])
+print "-------------"
 
-ggplot(rdf,aes('y','yp')) + geom_point(size=1)+\
+
+ggplot(rdf,aes('y','yall')) + geom_point(size=1)+\
 stat_function(fun = lambda x: x, color='red') +\
-geom_point(rdf,aes('y','yr'),size=1,color='green') +\
-geom_point(rdf,aes('y','yl'),size=1,color='red')# +\
+geom_point(rdf,aes('y','yl'),size=1,color='green') #+\
+#geom_point(rdf,aes('y','yl'),size=1,color='red')# +\
+
+#ggplot(rdf,aes('resid')) + geom_histogram(binwidth = 0.01)
 
 # <codecell>
 
@@ -417,21 +604,19 @@ reload(qimbs)
 
 # <codecell>
 
-#qimbs.Regression(LinR(), X_neg[ypln_neg>0],ypln_neg[ypln_neg],dates,datesDF_neg)
-Xnp = X_neg[ypln_neg>0].copy()
-
-
-ypln_neg[ypln_neg].copy()
-Xnp.index = range(Xnp.shape[0])
-trainError, testError = qimbs.run_reg(X_neg[ypln_neg>0],ypln_neg[ypln_neg],LinR(),10,1,dates,datesDF_neg)
+qimbs.Regression('COMB', X_pos,ypln_pos,dates,datesDF_pos,-1)
 
 # <codecell>
 
-Xtrain = X_neg[ypln_neg>0].ix[datesDF_neg.ix[[1,2]],:]
+qimbs.Regression('COMB', X_neg,ypln_neg,dates,datesDF_neg,-1)
 
 # <codecell>
 
-Xtrain
+qimbs.Regression('COMB', X_neg,ypln_neg,dates,datesDF_neg,1)
+
+# <codecell>
+
+qimbs.Regression('COMB', X_pos,ypln_pos,dates,datesDF_pos,1)
 
 # <codecell>
 
@@ -469,8 +654,8 @@ tmp_df['yp'] = ypln_pos
 tmp_df['yn'] = ypln_neg
 tmp_df['t'] = X_pos.D555
 tmp_df['t2'] = X_neg.D444
-ggplot(tmp_df[(tmp_df.yp<0) & (tmp_df.t>=0)],aes(x='yp')) + geom_histogram(binwidth = 0.01,alpha=0.5, color='red') +\
-geom_histogram(tmp_df[(tmp_df.yn<0) & (tmp_df.t2>=0)],aes(x='yn'),binwidth = 0.01,alpha=0.5,color='green')
+ggplot(tmp_df[(tmp_df.yp<0) & (tmp_df.t>=0)],aes(x='yp')) + geom_histogram(binwidth = 0.005,alpha=0.5, color='red') +\
+geom_histogram(tmp_df[(tmp_df.yn<0) & (tmp_df.t2>=0)],aes(x='yn'),binwidth = 0.005,alpha=0.5,color='green')
 
 # <codecell>
 
@@ -485,15 +670,26 @@ ggplot(tmp_df,aes(x='a7',y='yp')) + geom_point(size=1)
 
 # <codecell>
 
-clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_pos,y_pos)
-qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Pos')
-clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_neg,y_neg)
-qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Neg')
+
+
+
+
+
+#Save configuration for C++
 
 # <codecell>
 
+#Random forest for classification
+clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos,y_pos)
+qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/Pos')
+clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_neg,y_neg)
+qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/Neg')
+
+# <codecell>
+
+#Random forest for regression
 from sklearn.ensemble import RandomForestRegressor as RFR
 Xpp = X_pos.copy()
 Xpp = Xpp[ypln_pos>0]
@@ -501,7 +697,11 @@ Xpp.index = range(Xpp.shape[0])
 
 clf = RFR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05)
 clf.fit(Xpp, ypln_pos[ypln_pos>0])
-qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/PP')
+qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PP')
+
+clf = GBR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+clf.fit(Xpp, ypln_pos[ypln_pos>0])
+qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PP')
 
 # <codecell>
 
@@ -511,7 +711,11 @@ Xpn.index = range(Xpn.shape[0])
 
 clf = RFR(min_samples_split = ypln_pos[ypln_pos<0].shape[0]*0.05)
 clf.fit(Xpn, ypln_pos[ypln_pos<0])
-qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/PN')
+qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PN')
+
+clf = GBR(min_samples_split = ypln_pos[ypln_pos<0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+clf.fit(Xpn, ypln_pos[ypln_pos<0])
+qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PN')
 
 # <codecell>
 
@@ -521,7 +725,11 @@ Xnp.index = range(Xnp.shape[0])
 
 clf = RFR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05)
 clf.fit(Xnp, ypln_neg[ypln_neg>0])
-qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/NP')
+qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NP')
+
+clf = GBR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+clf.fit(Xnp, ypln_neg[ypln_neg>0])
+qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NP')
 
 # <codecell>
 
@@ -531,12 +739,13 @@ Xnn.index = range(Xnn.shape[0])
 
 clf = RFR(min_samples_split = ypln_neg[ypln_neg<0].shape[0]*0.05)
 clf.fit(Xnn, ypln_neg[ypln_neg<0])
-qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/NN')
+qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NN')
+
+clf = GBR(min_samples_split = ypln_neg[ypln_neg<0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+clf.fit(Xnn, ypln_neg[ypln_neg<0])
+qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NN')
 
 # <codecell>
 
 reload(qimbs)
-
-# <codecell>
-
 

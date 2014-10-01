@@ -118,3 +118,6 @@ stat_smooth(colour='green', span=0.3) + \
 ggtitle('pnl = %s, pps = %s' % \
         (df.Pnl.sum(),df.Pps.sum()))
 
+# <codecell>
+
+
