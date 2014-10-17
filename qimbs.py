@@ -510,23 +510,7 @@ def create_features33(imbalanceMsg):
     
     fdf['a1'] = fdf['Bid']*fdf['Ask']
     Features['a1'] = 'Bid*Ask'
-    
-    
-    #fdf['nBid'] = (bid-nbid)/ref
-    #Features['nBid'] = 'Bid(9.28)'
-    
-    #fdf['nAsk'] = (nask-ask)/ref
-    #Features['nAsk'] = 'Ask(9.28)'
-    
-    
-    
-    #fdf['Bid2'] = bid2/bid-1
-    #Features['Bid2'] = 'Bid(9.28)'
-    
-    #fdf['Ask2'] = ask2/ask-1
-    #Features['Ask2'] = 'Ask(9.28)'
-    
-    
+       
        
     fdf['Near'] = near/ref-1
     Features['Near'] = 'Near(9.28)'
@@ -808,7 +792,7 @@ def getImbTime(nImb):
         endTime = '9:29:58'
     return (startTime,endTime)
 
-def get_imbelanceMSG2(df,nImb):
+def get_imbalanceMSG2(df,nImb):
     (startTime,endTime) = getImbTime(nImb)
     
     imbalanceMsg = df[df.Reason == 'Imbalance']
@@ -1083,8 +1067,11 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
             
         if (clf_class=='COMB'):
                 clf1 = RF(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
-                clf2 = GBC(init='zero')
+                clf2 = GBC(min_samples_split = Xtrain.shape[0]*0.05,init='zero')# learning_rate=0.1
                 
+                #z = float(len(ytrain[ytrain==0]))
+                #nall = float(len(ytrain))
+                #sample_weight = np.array([(nall-z)/nall if i == 0 else z/nall for i in ytrain])
                 clf1.fit(Xtrain,ytrain)
                 clf2.fit(Xtrain,ytrain)
                 
@@ -1113,12 +1100,16 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                 if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
                     clf = clf_class(class_weight='auto')
                 if (type(clf_class()) ==  type(RF())):
-                    clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, criterion = 'entropy')
+                    clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, \
+                                    criterion = 'entropy')
                 if (type(clf_class()) ==  type(GBC())):
-                    clf = clf_class(learning_rate=0.1)#min_samples_split = Xtrain.shape[0]*0.05
+                    clf = clf_class(min_samples_split = Xtrain.shape[0]*0.05,init='zero')#min_samples_split = Xtrain.shape[0]*0.05
                 if (type(clf_class()) ==  type(GBR())):
                     clf = clf_class(init='zero')
 
+                #z = float(len(ytrain[ytrain==0]))
+                #nall = float(len(ytrain))
+                #ample_weight = np.array([(nall-z)/nall if i == 0 else z/nall for i in ytrain])
                 clf.fit(Xtrain,ytrain)
             
                 if (type(clf_class()) !=  type(GBR())):
@@ -1259,6 +1250,7 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     draw_confusion_matrix(cm,  numpy.sort(list(set(target))), fig1, ax1)
     ERRORS.loc[ERRORS.shape[0]] =[str(clf_class).split('.')[-1].strip('>'),trainError,testError]
     pr = Precision_Recall(cm,numpy.sort(list(set(target))))
+    cm2return=cm
     print 'Precision - %s, Recall - %s, F_Score - %s' % (pr[0],pr[1],pr[2])
 
     if clf_class=='NN':
@@ -1286,7 +1278,7 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     g = ggplot(LearningCurves, aes('Index', 'value', color = 'variable')) + geom_step() + \
     ggtitle('Learning curves') + xlab("% of data sent to train") + ylab("Error")
     
-    return g
+    return g,cm2return
 
 def Regression(clf_class, input,target,dates,datesDF,side):
     import numpy
@@ -1823,7 +1815,16 @@ def Tree2Txt(clf,t,fileName):
 def TreeTest2Txt(clf,X,fileName):
     f = open(fileName, 'w+')
     from sklearn.ensemble import GradientBoostingRegressor as GBR
-    if (type(clf) !=  type(GBR())):
+    from sklearn.ensemble import GradientBoostingClassifier as GBC
+    if ((type(clf) ==  type(GBR())) | (type(clf) ==  type(GBC()))):
+        proba = clf.predict(X)
+        for i in range(X.shape[0]):
+            s= ''
+            for j in range(X.shape[1]):
+                s +='%s;' %  str(X.ix[i,j])
+            s +='%s;' %  str(proba[i])
+            f.write(s+'\n')
+    else:
         if (clf.estimators_[0].tree_.n_classes[0]==1):
             proba = clf.predict(X)
             for i in range(X.shape[0]):
@@ -1841,24 +1842,18 @@ def TreeTest2Txt(clf,X,fileName):
                 for j in range(proba.shape[1]):
                     s +='%s;' %  str(proba[i,j])
                 f.write(s+'\n')
-    else:
-        proba = clf.predict(X)
-        for i in range(X.shape[0]):
-            s= ''
-            for j in range(X.shape[1]):
-                s +='%s;' %  str(X.ix[i,j])
-            s +='%s;' %  str(proba[i])
-            f.write(s+'\n')
+
     f.close()
     
 def Forest2Txt(clf,X,Dir):
     from sklearn.ensemble import GradientBoostingRegressor as GBR
-    if (type(clf) !=  type(GBR())):
-        for i in range(clf.n_estimators):
-            Tree2Txt(clf,clf.estimators_[i].tree_,Dir + '/%u.t' % i)
-    else:
+    from sklearn.ensemble import GradientBoostingClassifier as GBC
+    if ((type(clf) ==  type(GBR())) | (type(clf) ==  type(GBC()))):
         for i in range(clf.n_estimators):
             Tree2Txt(clf,clf.estimators_[i][0].tree_,Dir + '/%u.t' % i)
+    else:
+        for i in range(clf.n_estimators):
+            Tree2Txt(clf,clf.estimators_[i].tree_,Dir + '/%u.t' % i)
     TreeTest2Txt(clf,X,Dir + '/test.u')
 
 # <codecell>
@@ -1880,4 +1875,162 @@ def visualize_tree(clf):
 
 # <codecell>
 
+def create_featuresCumulative(df,nImb):
+    
+    stocks = set(df.Symbol)
+    dates = set(df.Date)
+    
+    for date in dates:
+        for stock in stocks:
+            stockData = df[(df.Symbol==stock) & (df.Date==dates)]
+
+            closeP = stockData[stockData.tSide=='YDAY'].tPrice
+            openP = stockData[stockData.Reason=='OPG'].tPrice           
+            
+            if (openP<=0): continue;  
+            
+            bid = np.array(stockData[stockData.Reason=='Imbalance'].Bid_P)
+            if (len(bid)!=24):
+                print df.Symbol, df.Date
+            bid = bid[:nImb];
+
+            ask = np.array(stockData[stockData.Reason=='Imbalance'].Ask_P)  
+            ask = ask[:nImb];
+            midP = 0.5*(bid + ask)
+            midP = midP[:nImb];
+            bidS = np.array(stockData[stockData.Reason=='Imbalance'].Bid_S)
+            bidS = bidS[:nImb];
+            askS = np.array(stockData[stockData.Reason=='Imbalance'].Ask_S) 
+            askS = askS[:nImb];
+
+            ref = np.array(stockData[stockData.Reason=='Imbalance'].ImbRef) 
+            ref = ref[:nImb];
+            near = np.array(stockData[stockData.Reason=='Imbalance'].ImbCBC)  
+            near = near[:nImb];
+            far = np.array(stockData[stockData.Reason=='Imbalance'].ImbFar)  
+            far = far[:nImb];    
+            
+            if ((ref<=0).any()):                continue;
+            if ((near<=0).any()):               continue;    
+            if ((far<=0).any()):                continue;   
+            if ((ask<=0).any()):                continue;    
+            if ((bid<=0).any()):                continue;    
+    
+    # &
+    #(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
+    # 1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) &
+    #(imbalanceMsg.ImbShares!=0)
+    
+            fdf['Symbol'] = imbalanceMsg.Symbol
+            fdf['Date'] = imbalanceMsg.Date
+ 
+      
+    return imbalanceMsg   
+
+# <codecell>
+
+def create_featuresCumulative2(imbalanceMsg):  
+    #Creating features for algorithm
+    import numpy
+    fdf = pd.DataFrame()
+
+    midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
+    bid = imbalanceMsg.Bid_P
+    bidS = imbalanceMsg.Bid_S   
+    ref = imbalanceMsg.ImbRef
+    ask = imbalanceMsg.Ask_P
+    askS = imbalanceMsg.Ask_S
+    near = imbalanceMsg.ImbCBC
+    far = imbalanceMsg.ImbFar
+    closeP = imbalanceMsg.PrevCLC_P
+    
+    fdf['Symbol'] = imbalanceMsg.Symbol
+    fdf['Date'] = imbalanceMsg.Date
+
+    fdf['Move'] = imbalanceMsg.Move
+    
+    fdf['Pnl'] = imbalanceMsg.OPC_P/imbalanceMsg.ImbRef-1
+    
+    fdf['MoveR'] = (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares>0)+\
+     (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares<0)     
+    
+    fdf['CMoveR'] = imbalanceMsg.Move
+    fdf.CMoveR = 0
+    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)] = 2
+    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P<=imbalanceMsg.ImbRef)\
+              & (imbalanceMsg.OPC_P>=imbalanceMsg.Ask_P)] = 1
+    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)] = -2
+    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P>=imbalanceMsg.ImbRef)\
+              & (imbalanceMsg.OPC_P<=imbalanceMsg.Bid_P)] = -1   
+    
+    fdf['CMove'] = imbalanceMsg.Move
+    fdf.CMove = 0
+    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.1] = 2
+    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0)
+              & (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.1)] = 1
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.1)] = -2
+    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0)
+              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.1)] = -1           
+        
+    fdf['Bid'] = bid/ref-1
+    
+    fdf['Ask'] = ask/ref-1   
+        
+    fdf['BidD'] = bid-ref
+    
+    fdf['AskD'] = ask - ref    
+    
+    fdf['a1'] = fdf['Bid']*fdf['Ask']        
+       
+    fdf['Near'] = near/ref-1
+    
+    fdf['Far'] = far/ref-1
+        
+    fdf['PrevCLC'] = closeP/ref-1
+    
+    fdf['Spread'] = (ask - bid)/ref
+
+    fdf['D3'] = 100*(midP/closeP-1)
+    
+    fdf['D4'] = 100*(bid-ref)/closeP
+
+    fdf['D5'] = 100*(ref-ask)/closeP
+    
+    fdf['D444'] = (bid-ref)/(1+ask - bid)
+
+    fdf['D555'] = (ref-ask)/(1+ask - bid)
+    
+    fdf['D7'] = 100*(ref/closeP-1)
+    
+    fdf['D66'] = 100*(ref/midP-1)
+
+    fdf['V1'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+np.abs(imbalanceMsg.ImbShares))
+    
+    fdf['V1n'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+np.abs(imbalanceMsg.ImbShares))
+    
+    fdf['V11'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+imbalanceMsg.ImbPaired)
+    
+    fdf['V11n'] =numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+    
+    fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
+    
+    fdf['V8n'] = imbalanceMsg.ImbShares/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+    
+    fdf['V8nn'] = (imbalanceMsg.ImbShares-(askS - bidS))/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+         
+    fdf['a3'] = fdf['D3']*fdf['D4']
+    
+    fdf['a4'] = fdf['D5']*fdf['D4']
+    
+    fdf['a5'] = fdf['D444']*fdf['D555']
+    
+    fdf['a6'] = fdf['D444']*fdf['D444']
+    
+    fdf['a7'] = fdf['D555']*fdf['D555']
+            
+    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
+    
+    fdf.index = range(fdf.shape[0])
+    
+    return fdf, Features
 

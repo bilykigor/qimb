@@ -28,11 +28,7 @@ df.index = range(df.shape[0])
 # <codecell>
 
 #Getting imbalance info
-imbalanceMsg = qimbs.get_imbalanceMSG2(df,0)
-imbalanceMsg = imbalanceMsg[
-    (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
-     1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) ]
-imbalanceMsg.index = range(imbalanceMsg.shape[0])
+imbalanceMsg = qimbs.get_imbelanceMSGCumulative(df,2)
 imbalanceMsg.shape
 
 # <codecell>
@@ -48,12 +44,77 @@ imbalanceMsg.shape
 
 # <codecell>
 
+    (startTime1,endTime1) = qimbs.getImbTime(0)
+    (startTime2,endTime2) = qimbs.getImbTime(2)
+    startTime,endTime=startTime1,endTime2
+    
+    imbalanceMsg = df[df.Reason == 'Imbalance']
+    imbalanceMsg = imbalanceMsg[
+    (imbalanceMsg.ImbRef>0) & 
+    (imbalanceMsg.ImbCBC>0) &
+    (imbalanceMsg.ImbFar>0) &
+    (imbalanceMsg.Ask_P>0) &
+    (imbalanceMsg.Bid_P>0) &
+    (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
+     1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) &
+    (imbalanceMsg.ImbShares!=0)]
+    
+    imbalanceMsg.index = range(imbalanceMsg.shape[0])
+    
+    Timestamp = []
+    for i in range(imbalanceMsg.shape[0]):
+        Timestamp.append(datetime.datetime.strptime(imbalanceMsg.Time[i],'%H:%M:%S'))
+        
+    imbalanceMsg['Timestamp'] = Timestamp
+    del Timestamp
+    imbalanceMsg = imbalanceMsg.set_index(['Timestamp'])
+    imbalanceMsg = imbalanceMsg.between_time(startTime,endTime)    
+
+# <codecell>
+
+imbalanceMsg[(imbalanceMsg.Symbol=='SIRI') & (imbalanceMsg.Date=='2014-05-01')].head()
+
+# <codecell>
+
+df.head()
+
+# <codecell>
+
+stockData = df[(df.Symbol=="QQQ") & (df.Date=='2014-05-01')]
+
+# <codecell>
+
+stockData
+
+# <codecell>
+
+    stockData = df[(df.Symbol=="QQQ") & (df.Date=='2014-05-01')]
+    
+    closeP = stockData[stockData.tSide=='YDAY'].tPrice
+    openP = stockData[stockData.Reason=='OPG'].tPrice
+
+    bid = np.array(stockData[stockData.Reason=='Imbalance'].Bid_P)
+    if (len(bid)!=24):
+        print df.Symbol, df.Date
+        
+    
+    ask = np.array(stockData[stockData.Reason=='Imbalance'].Ask_P)    
+    midP = 0.5*(bid + ask)
+    bidS = np.array(stockData[stockData.Reason=='Imbalance'].Bid_S)
+    askS = np.array(stockData[stockData.Reason=='Imbalance'].Ask_S)  
+
+    ref = np.array(stockData[stockData.Reason=='Imbalance'].ImbRef)  
+    near = np.array(stockData[stockData.Reason=='Imbalance'].ImbCBC)  
+    far = np.array(stockData[stockData.Reason=='Imbalance'].ImbFar)  
+
+    
+
+
+
+# <codecell>
+
 #Creating features
 fdf,Features = qimbs.create_features33(imbalanceMsg)
-
-#X = fdf[['Bid','Ask','Near','Far','PrevCLC','Spread',
-# 'D3', 'D4', 'D5', 'D444', 'D555', 'D7', 'D66', 'V1', 'V11', 
-# 'V8', 'a3', 'a4', 'a14','nBid','nAsk','Bid2','Ask2' ]]
 
 X_pos = fdf[fdf.a14>0]
 X_pos.index = range(X_pos.shape[0])
@@ -103,22 +164,6 @@ ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 # <codecell>
 
-ym_pos = imbalanceMsg.OPC_P.copy()
-ym_pos[:] = 0
-ym_pos[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P+0.05] = 1
-#ym_pos[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P+0.2]=2
-ym_pos = ym_pos[fdf.a14>0]
-ym_pos.index = range(y_pos.shape[0])
-
-ym_neg = imbalanceMsg.OPC_P.copy()
-ym_neg[:] = 0
-ym_neg[imbalanceMsg.OPC_P<imbalanceMsg.Bid_P-0.05] = 1
-#ym_neg [imbalanceMsg.OPC_P<imbalanceMsg.Bid_P-0.2]=2
-ym_neg = ym_neg[fdf.a14<0]
-ym_neg.index = range(y_neg.shape[0])
-
-# <codecell>
-
 ggplot(fdf,aes(x='Move')) + geom_histogram(binwidth = 0.05) 
 
 # <codecell>
@@ -154,35 +199,6 @@ qimbs.OneModelResults(GBC, X_pos,y_pos,ERRORS,dates,datesDF_pos)
 # <codecell>
 
 qimbs.OneModelResults(GBC, X_neg,y_neg,ERRORS,dates,datesDF_neg)
-
-# <rawcell>
-
-# qimbs.OneModelResults('COMB', X_pos,ym_pos,ERRORS,dates,datesDF_pos)
-
-# <codecell>
-
-qimbs.OneModelResults('COMB', X_neg,ym_neg,ERRORS,dates,datesDF_neg)
-
-# <codecell>
-
-qimbs.OneModelResults(RF, X_pos,ym_pos,ERRORS,dates,datesDF_pos)
-
-# <codecell>
-
-qimbs.OneModelResults(RF, X_neg,ym_neg,ERRORS,dates,datesDF_neg)
-
-# <codecell>
-
-ym_pos.hist()
-
-# <codecell>
-
-from sklearn.ensemble import GradientBoostingClassifier as GBC
-qimbs.OneModelResults(GBC, X_pos,ym_pos,ERRORS,dates,datesDF_pos)
-
-# <codecell>
-
-qimbs.OneModelResults(GBC, X_neg,ym_neg,ERRORS,dates,datesDF_neg)
 
 # <codecell>
 
@@ -579,8 +595,8 @@ from sklearn.linear_model import SGDRegressor as SGDR
 from sklearn.linear_model import Ridge
 from sklearn.svm import SVR
 
-f = ytrain>0
-f2 = ytest>0
+f = ytrain<0
+f2 = ytest<0
 clf = GBR(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05,init='zero')
 clf.fit(Xtrain[f], ytrain[f])
 y_pred = clf.predict(Xtest[f2])
@@ -646,10 +662,6 @@ geom_point(rdf,aes('y','yl'),size=1,color='green') #+\
 # <codecell>
 
 reload(qimbs)
-
-# <codecell>
-
-#Regression learning curves
 
 # <codecell>
 
@@ -738,42 +750,6 @@ qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/Ne
 
 # <codecell>
 
-#Gradient Boosting for classification
-clf = GBC(min_samples_split = X_pos.shape[0]*0.05, init='zero')
-clf.fit(X_pos,y_pos)
-qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/Pos')
-clf = GBC(min_samples_split = X_neg.shape[0]*0.05, init='zero')
-clf.fit(X_neg,y_neg)
-qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/Neg')
-
-# <codecell>
-
-
-# <codecell>
-
-#Random forest for classification
-clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_pos,ym_pos)
-qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/5Pos')
-clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_neg,ym_neg)
-qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/5Neg')
-
-# <codecell>
-
-#Gradient Boosting for classification
-clf = GBC(min_samples_split = X_pos.shape[0]*0.05, init='zero')
-clf.fit(X_pos,ym_pos)
-qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/5Pos')
-clf = GBC(min_samples_split = X_neg.shape[0]*0.05, init='zero')
-clf.fit(X_neg,ym_neg)
-qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/5Neg')
-
-# <codecell>
-
-
-# <codecell>
-
 #Random forest for regression
 from sklearn.ensemble import RandomForestRegressor as RFR
 Xpp = X_pos.copy()
@@ -833,7 +809,4 @@ qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoo
 # <codecell>
 
 reload(qimbs)
-
-# <codecell>
-
 
