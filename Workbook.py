@@ -7,6 +7,7 @@ import qimbs
 import numpy as np
 import pandas as pd
 from ggplot import *
+from sklearn.preprocessing import PolynomialFeatures
 
 # <codecell>
 
@@ -14,24 +15,45 @@ reload(qimbs)
 
 # <codecell>
 
+from IPython import parallel
+clients = parallel.Client()
+clients.block = True  # use synchronous computations
+print clients.ids
+
+# <codecell>
+
+#data2 = clients[0].apply(qimbs.import_month,2)
+#data3 = clients[1].apply(qimbs.import_month,3)
+#data4 = clients[2].apply(qimbs.import_month,4)
+#data5 = clients[3].apply(qimbs.import_month,5)
+
+# <codecell>
+
+#data6 = clients[0].apply(qimbs.import_month,6)
+
+# <codecell>
+
 #!Importing data
 df = pd.DataFrame()
-for i in range(5,7):
+for i in range(7,8):
     df = df.append(qimbs.import_month(i))
     print i
+    
+#df = df.append(data2); del data2
+#df = df.append(data3); del data3
+#df = df.append(data4); del data4
+#df = df.append(data5); del data5
+#df = df.append(data6); del data6
 print df.shape
 df.index = range(df.shape[0])
-
-#Adding Timestamp column
-#df = qimbs.create_timestamp(df)
 
 # <codecell>
 
 #Getting imbalance info
+reload(qimbs)
 imbalanceMsg = qimbs.get_imbalanceMSG2(df,0)
 imbalanceMsg = imbalanceMsg[
-    (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
-     1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) ]
+    (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 0.1 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) ]
 imbalanceMsg.index = range(imbalanceMsg.shape[0])
 imbalanceMsg.shape
 
@@ -48,12 +70,25 @@ imbalanceMsg.shape
 
 # <codecell>
 
-#Creating features
-fdf,Features = qimbs.create_features33(imbalanceMsg)
+#Procees c++ created features
+f = '/home/user1/PyProjects/imbalanceMsg.csv' 
+                   
+imbalanceMsg = pd.read_csv(f, low_memory=False)
 
-#X = fdf[['Bid','Ask','Near','Far','PrevCLC','Spread',
-# 'D3', 'D4', 'D5', 'D444', 'D555', 'D7', 'D66', 'V1', 'V11', 
-# 'V8', 'a3', 'a4', 'a14','nBid','nAsk','Bid2','Ask2' ]]
+print imbalanceMsg.shape
+
+imbalanceMsg.tail()
+
+# <codecell>
+
+#Creating features
+reload(qimbs)
+fdf = qimbs.create_features33(imbalanceMsg)
+
+# <codecell>
+
+
+# <codecell>
 
 X_pos = fdf[fdf.a14>0]
 X_pos.index = range(X_pos.shape[0])
@@ -67,31 +102,19 @@ X_neg=X_neg[['Bid','BidD','Near','Far','Spread',
  'D4',  'D444', 'D66', 'V1','V1n', 'V11',  'V11n',
  'V8','V8n','V8nn', 'a1','a4','a5']]
 
-y_pos = imbalanceMsg.OPC_P>imbalanceMsg.Ask_P
+y_pos = fdf.OPC_P>fdf.Ask_P
 y_pos = y_pos[fdf.a14>0]
 y_pos.index = range(y_pos.shape[0])
 
-y_neg = imbalanceMsg.OPC_P<imbalanceMsg.Bid_P
+y_neg = fdf.OPC_P<fdf.Bid_P
 y_neg = y_neg[fdf.a14<0]
 y_neg.index = range(y_neg.shape[0])
 
-#yR_pos = imbalanceMsg.OPC_P>imbalanceMsg.ImbRef
-#yR_pos = yR_pos[fdf.a14>0]
-#yR_pos.index = range(yR_pos.shape[0])
-
-#yR_neg = imbalanceMsg.OPC_P<imbalanceMsg.ImbRef
-#yR_neg = yR_neg[fdf.a14<0]
-#yR_neg.index = range(yR_neg.shape[0])
-
-#yCR = fdf['CMoveR']
-
-#ycmove = fdf['CMove']
-
-ypln_pos = imbalanceMsg.OPC_P/imbalanceMsg.Ask_P-1
+ypln_pos = fdf.OPC_P/fdf.Ask_P-1
 ypln_pos = ypln_pos[fdf.a14>0]
 ypln_pos.index = range(ypln_pos.shape[0])
 
-ypln_neg = 1-imbalanceMsg.OPC_P/imbalanceMsg.Bid_P
+ypln_neg = 1-fdf.OPC_P/fdf.Bid_P
 ypln_neg = ypln_neg[fdf.a14<0]
 ypln_neg.index = range(ypln_neg.shape[0])
 
@@ -103,23 +126,120 @@ ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 # <codecell>
 
-ym_pos = imbalanceMsg.OPC_P.copy()
+ym_pos = fdf.OPC_P.copy()
 ym_pos[:] = 0
-ym_pos[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P+0.05] = 1
-#ym_pos[imbalanceMsg.OPC_P>imbalanceMsg.Ask_P+0.2]=2
+ym_pos[fdf.OPC_P>fdf.Ask_P+0.1] = 1
 ym_pos = ym_pos[fdf.a14>0]
 ym_pos.index = range(y_pos.shape[0])
 
-ym_neg = imbalanceMsg.OPC_P.copy()
+ym_neg = fdf.OPC_P.copy()
 ym_neg[:] = 0
-ym_neg[imbalanceMsg.OPC_P<imbalanceMsg.Bid_P-0.05] = 1
-#ym_neg [imbalanceMsg.OPC_P<imbalanceMsg.Bid_P-0.2]=2
+ym_neg[fdf.OPC_P<fdf.Bid_P-0.1] = 1
 ym_neg = ym_neg[fdf.a14<0]
 ym_neg.index = range(y_neg.shape[0])
 
 # <codecell>
 
-ggplot(fdf,aes(x='Move')) + geom_histogram(binwidth = 0.05) 
+X_pos.tail()
+
+# <codecell>
+
+ggplot(fdf,aes(x='p')) + geom_histogram() #binwidth = 0.05
+
+# <codecell>
+
+ggplot(fdf[fdf.y>0],aes(x='D4',y='D5')) + geom_point(alpha=0.4, color='green',size=2) + \
+geom_point(fdf[fdf.y<0],aes(x='D4',y='D5'),alpha=0.4, color='red',size=2) + \
+geom_point(fdf[fdf.y==0],aes(x='D4',y='D5'),alpha=0.4, color='blue',size=2) 
+
+# <codecell>
+
+from sklearn.cluster import KMeans
+kmeans = KMeans(n_clusters = 3)
+kmeans.fit(fdf.Mid_P)
+
+# <codecell>
+
+y_pos = fdf.y>0
+y_pos = y_pos[(fdf.a14>0) & (fdf.ImbInd!=0)]
+y_pos.index = range(y_pos.shape[0])
+
+X_pos = fdf[(fdf.a14>0) & (fdf.ImbInd!=0)]
+X_pos.index = range(X_pos.shape[0])
+X_pos=X_pos[['Ask','AskD','Near','Far','Spread',
+ 'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
+ 'V8','V8n','V8nn', 'a1','a4','a5']]
+
+y_neg = fdf.y<0
+y_neg = y_neg[(fdf.a14<0) & (fdf.ImbInd!=0)]
+y_neg.index = range(y_neg.shape[0])
+
+X_neg = fdf[(fdf.a14<0) & (fdf.ImbInd!=0)]
+X_neg.index = range(X_neg.shape[0])
+X_neg=X_neg[['Bid','BidD','Near','Far','Spread',
+ 'D4',  'D444', 'D66', 'V1','V1n', 'V11',  'V11n',
+ 'V8','V8n','V8nn', 'a1','a4','a5']]
+
+dates = sorted(list(set(fdf.Date)))
+datesDF_pos = qimbs.dates_tmp_df(fdf[(fdf.a14>0) & (fdf.ImbInd!=0)])
+datesDF_neg = qimbs.dates_tmp_df(fdf[(fdf.a14<0) & (fdf.ImbInd!=0)])
+
+ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
+
+# <codecell>
+
+ym_pos = fdf.OpenP.copy()
+ym_pos[:] = 0
+ym_pos[fdf.OpenP>fdf.AskP+0.05] = 1
+ym_pos = ym_pos[(fdf.a14>0) & (fdf.ImbInd==0)]
+ym_pos.index = range(ym_pos.shape[0])
+
+ym_neg = fdf.OpenP.copy()
+ym_neg[:] = 0
+ym_neg[fdf.OpenP<fdf.BidP-0.05] = 1
+ym_neg = ym_neg[(fdf.a14<0) & (fdf.ImbInd==0)]
+ym_neg.index = range(ym_neg.shape[0])
+
+# <codecell>
+
+#For automatic features generation
+y_pos = fdf.y>0
+y_pos = y_pos[fdf.ImbSign>0]
+y_pos.index = range(y_pos.shape[0])
+
+X_pos = fdf[fdf.ImbSign>0]
+X_pos.index = range(X_pos.shape[0])
+X_pos1=X_pos[['CloseP','Bid','Ask','Ref','Far','Near','ClosePSPY','BidSPY','AskSPY']]
+X_pos2=X_pos[['BidS','AskS','ImbS','AImbS','PairedS']]
+autoX_pos1 = autocreateFeatures(X_pos1,y_pos,1)
+autoX_pos1.columns = ["a"+str(x) for x in range(autoX_pos1.shape[1])]
+autoX_pos2 = autocreateFeatures(X_pos2,y_pos,1)
+autoX_pos2.columns = ["b"+str(x) for x in range(autoX_pos2.shape[1])]
+autoX_pos = pd.concat([autoX_pos1, autoX_pos2], axis=1)
+#X_pos_Benchmark = createFeaturesBench(X_pos)
+
+
+y_neg = fdf.y<0
+y_neg = y_neg[fdf.ImbSign<0]
+y_neg.index = range(y_neg.shape[0])
+
+X_neg = fdf[fdf.ImbSign<0]
+X_neg.index = range(X_neg.shape[0])
+X_neg1=X_neg[['CloseP','Bid','Ask','Ref','Far','Near','ClosePSPY','BidSPY','AskSPY']]
+X_neg2=X_neg[['BidS','AskS','ImbS','AImbS','PairedS']]
+autoX_neg1 = autocreateFeatures(X_neg1,y_neg,1)
+autoX_neg1.columns = ["a"+str(x) for x in range(autoX_neg1.shape[1])]
+autoX_neg2 = autocreateFeatures(X_neg2,y_neg,1)
+autoX_neg2.columns = ["b"+str(x) for x in range(autoX_neg2.shape[1])]
+autoX_neg = pd.concat([autoX_neg1, autoX_neg2], axis=1)
+#X_neg_Benchmark = createFeaturesBench(X_neg)
+
+
+dates = sorted(list(set(fdf.Date)))
+datesDF_pos = qimbs.dates_tmp_df(fdf[fdf.ImbSign>0])
+datesDF_neg = qimbs.dates_tmp_df(fdf[fdf.ImbSign<0])
+
+ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 # <codecell>
 
@@ -135,29 +255,35 @@ qimbs.OneModelResults('COMB', X_pos,y_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
-qimbs.OneModelResults('COMB', X_neg,y_neg,ERRORS,dates,datesDF_neg)
+qimbs.OneModelResults('COMB', X_neg,ym_neg,ERRORS,dates,datesDF_neg)
+
+# <codecell>
+
+X_pos.describe()
 
 # <codecell>
 
 from sklearn.ensemble import RandomForestClassifier as RF
-qimbs.OneModelResults(RF, X_pos,y_pos,ERRORS,dates,datesDF_pos)
+reload(qimbs)
+qimbs.OneModelResults(RF, X_pos,ym_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
-qimbs.OneModelResults(RF, X_neg,y_neg,ERRORS,dates,datesDF_neg)
+reload(qimbs)
+qimbs.OneModelResults(RF, X_neg,ym_neg,ERRORS,dates,datesDF_neg)
 
 # <codecell>
 
 from sklearn.ensemble import GradientBoostingClassifier as GBC
-qimbs.OneModelResults(GBC, X_pos,y_pos,ERRORS,dates,datesDF_pos)
+qimbs.OneModelResults(GBC, X_pos,ym_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
-qimbs.OneModelResults(GBC, X_neg,y_neg,ERRORS,dates,datesDF_neg)
+qimbs.OneModelResults(GBC, X_neg,ym_neg,ERRORS,dates,datesDF_neg)
 
-# <rawcell>
+# <codecell>
 
-# qimbs.OneModelResults('COMB', X_pos,ym_pos,ERRORS,dates,datesDF_pos)
+qimbs.OneModelResults('COMB', X_pos,ym_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
@@ -188,37 +314,88 @@ qimbs.OneModelResults(GBC, X_neg,ym_neg,ERRORS,dates,datesDF_neg)
 
 #Lets see features importance and try to reduce the number of feature for RF algo
 from sklearn.ensemble import RandomForestClassifier as RF
-clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_pos,y_pos)
+clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy',n_estimators =10)
+#Stage 2
+newX_pos=X_pos#createFeatures34(X_pos2)
+clf.fit(newX_pos,y_pos)
 
 fi = pd.DataFrame()
-fi['Feature'] = list(X_pos.columns)
+fi['Feature'] = list(newX_pos.columns)
 fi['Impotrance'] = clf.feature_importances_
 fi=fi.sort(columns=['Impotrance'],ascending=False)
-fi['Index'] = range(X_pos.shape[1])
+fi['Index'] = range(newX_pos.shape[1])
+fi.index = fi['Index']
 
+'''for i in range(fi.shape[0]):
+    if (fi['Impotrance'][i]<0.005):
+        break
+    #print fi['Feature'][i]
+
+newX_pos = newX_pos[fi['Feature'][:i]]'''
+
+#Stage 2
+'''poly = PolynomialFeatures(2)
+newX_pos_2=pd.DataFrame(poly.fit_transform(newX_pos))
+clf.fit(newX_pos_2,y_pos)
+
+fi = pd.DataFrame()
+fi['Feature'] = list(newX_pos_2.columns)
+fi['Impotrance'] = clf.feature_importances_
+fi=fi.sort(columns=['Impotrance'],ascending=False)
+fi['Index'] = range(newX_pos_2.shape[1])
+fi.index = fi['Index']
+
+for i in range(fi.shape[0]):
+    if (fi['Impotrance'][i]<0.01):
+        break
+    #print fi['Feature'][i]
+
+newX_pos_2 = newX_pos_2[fi['Feature'][:i]]'''
+   
 ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
 geom_point() + geom_text(vjust=0.005)
 
 # <codecell>
 
-clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_neg,y_neg)
+clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy',n_estimators =10)
+newX_neg=X_neg#createFeatures35(X_neg)
+clf.fit(newX_neg,y_neg)
 
 fi = pd.DataFrame()
-fi['Feature'] = list(X_neg.columns)
+fi['Feature'] = list(newX_neg.columns)
 fi['Impotrance'] = clf.feature_importances_
 fi=fi.sort(columns=['Impotrance'],ascending=False)
-fi['Index'] = range(X_neg.shape[1])
+fi['Index'] = range(newX_neg.shape[1])
+fi.index = fi['Index']
 
-ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
+for i in range(fi.shape[0]):
+    if (fi['Impotrance'][i]<0.005):
+        break
+    #print fi['Feature'][i]
+    
+newX_neg = newX_neg[fi['Feature'][:i]]
+
+#Stage 2
+poly = PolynomialFeatures(2)
+newX_neg_2=pd.DataFrame(poly.fit_transform(newX_neg))
+clf.fit(newX_neg_2,y_neg)
+
+fi = pd.DataFrame()
+fi['Feature'] = list(newX_neg_2.columns)
+fi['Impotrance'] = clf.feature_importances_
+fi=fi.sort(columns=['Impotrance'],ascending=False)
+fi['Index'] = range(newX_neg_2.shape[1])
+fi.index = fi['Index']
+
+for i in range(fi.shape[0]):
+    if (fi['Impotrance'][i]<0.01):
+        break
+    #print fi['Feature'][i]
+
+newX_neg_2 = newX_neg_2[fi['Feature'][:i]]
+    
+ggplot(fi[fi['Impotrance']>0.01],aes('Index','Impotrance',label='Feature')) +\
 geom_point() + geom_text(vjust=0.005)
-
-# <codecell>
-
-print 'Main features are:'
-for f in list(fi['Feature'][:15]):
-    print '%s  %s' %(f,Features[f])
 
 # <codecell>
 
@@ -313,7 +490,7 @@ qimbs.OneModelResults(LR, X_pos,y_pos,ERRORS,dates,datesDF_pos)
 
 from sklearn.svm import SVC
 print "SVC:"
-qimbs.OneModelResults(SVC, X_pos, y_pos,ERRORS,dates,datesDF_pos)
+qimbs.OneModelResults(SVC, X_pos, ym_pos,ERRORS,dates,datesDF_pos)
 
 # <codecell>
 
@@ -559,9 +736,57 @@ outLayer
 
 # <codecell>
 
+def run_reg(X,y,clf_class,n_folds,test_size,dates,datesDF):
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    from sklearn.ensemble import RandomForestRegressor as RFR
+    CLF_BEST = clf_class()
+    TEST_R2_Score = 0
+    
+    for i in range(n_folds): 
+        #======Get test_train_split=============
+        r = range(len(dates))
+        np.random.shuffle(r)
+        test_days = r[:test_size] 
+        train_days = r[test_size:] 
+
+        Xtrain = X.ix[datesDF.ix[train_days],:]
+        Xtest = X.ix[datesDF.ix[test_days],:]
+        ytrain = y.ix[datesDF.ix[train_days]]
+        ytest = y.ix[datesDF.ix[test_days]] 
+        
+        Xtrain.index = range(Xtrain.shape[0])
+        Xtest.index = range(Xtest.shape[0])
+        ytrain.index = range(ytrain.shape[0])
+        ytest.index = range(ytest.shape[0])
+        #======================================== 
+        
+        f = ytrain<0
+        f2 = ytest<0
+        
+        if (type(clf_class()) ==  type(RFR())):
+            clf = clf_class(min_samples_split = ytrain[f].shape[0]*0.05)
+        if (type(clf_class()) ==  type(GBR())):
+            clf = clf_class(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05,init='zero')    
+            
+        clf.fit(Xtrain[f], ytrain[f])
+        y_predR = clf.predict(Xtest[f2])
+        r2 = metrics.r2_score(clf.predict(Xtest[f2]), ytest[f2])
+        
+        #print r2
+           
+        if r2>TEST_R2_Score:
+            TEST_R2_Score =  r2
+            CLF_BEST = clf
+                
+    print "max R2_Score ",TEST_R2_Score
+    
+    return CLF_BEST, TEST_R2_Score
+
+# <codecell>
+
 from sklearn import metrics
 
-test_size = 20
+test_size = 30
 r = range(len(dates))
 np.random.shuffle(r)
 test_days = r[:test_size] 
@@ -579,8 +804,8 @@ from sklearn.linear_model import SGDRegressor as SGDR
 from sklearn.linear_model import Ridge
 from sklearn.svm import SVR
 
-f = ytrain>0
-f2 = ytest>0
+f = ytrain<0
+f2 = ytest<0
 clf = GBR(loss='huber', min_samples_split = ytrain[f].shape[0]*0.05,init='zero')
 clf.fit(Xtrain[f], ytrain[f])
 y_pred = clf.predict(Xtest[f2])
@@ -636,12 +861,22 @@ print "Test     R2: ", metrics.r2_score(rdf['yall'], rdf['y'])
 print "-------------"
 
 
-ggplot(rdf,aes('y','yall')) + geom_point(size=1)+\
+ggplot(rdf,aes('y','yp')) + geom_point(size=1)+\
 stat_function(fun = lambda x: x, color='red') +\
 geom_point(rdf,aes('y','yl'),size=1,color='green') #+\
 #geom_point(rdf,aes('y','yl'),size=1,color='red')# +\
 
 #ggplot(rdf,aes('resid')) + geom_histogram(binwidth = 0.01)
+
+# <codecell>
+
+clf = LinR()
+clf.fit(Xtrain[f], ytrain[f])
+list(clf.coef_)
+
+# <codecell>
+
+Xtrain.ix[0,:]
 
 # <codecell>
 
@@ -728,13 +963,178 @@ ggplot(tmp_df,aes(x='a7',y='yp')) + geom_point(size=1)
 
 # <codecell>
 
+db = '/home/user1/Desktop/Share2Windows/RandomForestDatabase.sql'
+reload(qimbs)
+qimbs.DropDB(db)
+
+# <codecell>
+
+reload(qimbs)
+qimbs.TestData2Sql(1, X_pos,ypln_pos,db)
+qimbs.TestData2Sql(-1, X_neg,ypln_neg,db)
+
+# <codecell>
+
+reload(qimbs)
+Forest2SqlClf(0.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(1.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(2.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(3.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(4.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(5.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(7.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(9.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(11.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(13.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(15.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(17.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+Forest2SqlClf(19.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
+
+# <codecell>
+
+reload(qimbs)
+Forest2SqlReg(db,fdf,X_pos,X_neg)
+
+# <codecell>
+
+def Forest2SqlClf(advantage,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg):
+
+    ym_pos = fdf.OPC_P.copy()
+    ym_pos[:] = 0
+    ym_pos[fdf.OPC_P>fdf.Ask_P+advantage/100] = 1
+    ym_pos = ym_pos[fdf.a14>0]
+    ym_pos.index = range(y_pos.shape[0])
+
+    ym_neg = fdf.OPC_P.copy()
+    ym_neg[:] = 0
+    ym_neg[fdf.OPC_P<fdf.Bid_P-advantage/100] = 1
+    ym_neg = ym_neg[fdf.a14<0]
+    ym_neg.index = range(y_neg.shape[0])
+    
+    trainError, testError, cm, clf, fscore1 = qimbs.run_cv_proba(X_pos,ym_pos,RF,20,20,dates,datesDF_pos)
+    #clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+    #clf.fit(X_pos,ym_pos)
+    qimbs.Forest2Sql(clf, X_pos,0,1,advantage,fscore1,db)
+    
+    trainError, testError, cm, clf, fscore2 = qimbs.run_cv_proba(X_neg,ym_neg,RF,20,20,dates,datesDF_neg)
+    #clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
+    #clf.fit(X_neg,ym_neg)
+    qimbs.Forest2Sql(clf,X_neg,0,-1,advantage,fscore2,db)
+    
+    print "f1-", fscore1, " f2-",fscore2
+
+# <codecell>
+
+def Forest2SqlReg(db,fdf,X_pos,X_neg):
+    #Random forest for regression
+    
+    from sklearn.ensemble import RandomForestRegressor as RFR
+    '''Xpp = X_pos.copy()
+    Xpp = Xpp[ypln_pos>0]
+    Xpp.index = range(Xpp.shape[0])
+
+    clf = RFR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05)
+    clf.fit(Xpp, ypln_pos[ypln_pos>0])
+    qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PP')
+
+    clf = GBR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+    clf.fit(Xpp, ypln_pos[ypln_pos>0])
+    qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PP')'''
+
+    #------------------------------------------
+    Xpn = X_pos.copy()
+    Xpn = Xpn[ypln_pos<0]
+    Xpn.index = range(Xpn.shape[0])
+    
+    clf, r2 = run_reg(X_pos,ypln_pos,RFR,20,20,dates,datesDF_pos)
+    qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PN')
+    qimbs.Forest2Sql(clf, Xpn.ix[:,:],1,1,0,r2,db)
+
+    clf, r2 = run_reg(X_pos,ypln_pos,GBR,20,20,dates,datesDF_pos)
+    qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PN')
+    qimbs.Forest2Sql(clf, Xpn.ix[:,:],1,1,0,r2,db)
+
+    #------------------------------------------
+    '''Xnp = X_neg.copy()
+    Xnp = Xnp[ypln_neg>0]
+    Xnp.index = range(Xnp.shape[0])
+
+    clf = RFR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05)
+    clf.fit(Xnp, ypln_neg[ypln_neg>0])
+    qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NP')
+
+    clf = GBR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+    clf.fit(Xnp, ypln_neg[ypln_neg>0])
+    qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NP')'''
+
+    #------------------------------------------
+    Xnn = X_neg.copy()
+    Xnn = Xnn[ypln_neg<0]
+    Xnn.index = range(Xnn.shape[0])
+
+    clf, r2 = run_reg(X_neg,ypln_neg,RFR,20,20,dates,datesDF_neg)
+    qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NN')
+    qimbs.Forest2Sql(clf, Xnn.ix[:,:],1,-1,0,r2,db)
+
+    clf, r2 = run_reg(X_neg,ypln_neg,GBR,20,20,dates,datesDF_neg)
+    qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NN')
+    qimbs.Forest2Sql(clf, Xnn.ix[:,:],1,-1,0,r2,db)
+
+# <codecell>
+
+#Random forest for regression
+
+
+# <codecell>
+
+
+# <codecell>
+
+
+# <codecell>
+
+#Random forest for classification
+from sklearn.ensemble import RandomForestClassifier as RF
+clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos,y_pos)
+qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PosNotFirst')
+
+clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_neg,y_neg)
+qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NegNotFirst')
+
+# <codecell>
+
+#Random forest for classification far move
+clf = RF(n_jobs=4,min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos,ym_pos)
+qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/5Pos')
+clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_neg,ym_neg)
+qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/5Neg')
+
+# <codecell>
+
+#Gradient Boosting for classification far move
+clf = GBC(min_samples_split = X_pos.shape[0]*0.05, init='zero')
+clf.fit(X_pos,ym_pos)
+#qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/5Pos')
+clf = GBC(min_samples_split = X_neg.shape[0]*0.05, init='zero')
+clf.fit(X_neg,ym_neg)
+#qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/5Neg')
+
+# <codecell>
+
 #Random forest for classification
 clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
 clf.fit(X_pos,y_pos)
-qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/Pos')
+qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PosLast')
 clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
 clf.fit(X_neg,y_neg)
-qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/Neg')
+qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NegLast')
+
+# <codecell>
+
 
 # <codecell>
 
@@ -745,32 +1145,6 @@ qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientB
 clf = GBC(min_samples_split = X_neg.shape[0]*0.05, init='zero')
 clf.fit(X_neg,y_neg)
 qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/Neg')
-
-# <codecell>
-
-
-# <codecell>
-
-#Random forest for classification
-clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_pos,ym_pos)
-qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/5Pos')
-clf = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
-clf.fit(X_neg,ym_neg)
-qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/5Neg')
-
-# <codecell>
-
-#Gradient Boosting for classification
-clf = GBC(min_samples_split = X_pos.shape[0]*0.05, init='zero')
-clf.fit(X_pos,ym_pos)
-qimbs.Forest2Txt(clf, X_pos.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/5Pos')
-clf = GBC(min_samples_split = X_neg.shape[0]*0.05, init='zero')
-clf.fit(X_neg,ym_neg)
-qimbs.Forest2Txt(clf, X_neg.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/5Neg')
-
-# <codecell>
-
 
 # <codecell>
 
@@ -836,4 +1210,29 @@ reload(qimbs)
 
 # <codecell>
 
+from sklearn.ensemble import RandomForestClassifier as RF
+clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+clf.fit(X_pos,y_pos)
+
+# <codecell>
+
+import sqlite3 as lite
+import sys
+import pandas as pd
+con = lite.connect(db)
+df = pd.read_sql("SELECT * FROM RFnames", con)
+print df
+pd.read_sql("SELECT * FROM RFtests Order by RFID",con)
+con.commit()
+con.interrupt()
+con.close()
+
+# <codecell>
+
+clfPos = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy')
+clfPos.fit(X_pos,ym_pos)
+clfMin = RF(min_samples_split = X_neg.shape[0]*0.05, criterion = 'entropy')
+clfMin.fit(X_neg,ym_neg)
+predPos = pd.DataFrame(clfPos.predict(X_pos),columns=['val'])
+predNeg = pd.DataFrame(clfMin.predict(X_neg),columns=['val'])
 

@@ -27,20 +27,7 @@ df.index = range(df.shape[0])
 
 # <codecell>
 
-#Getting imbalance info
-imbalanceMsg = qimbs.get_imbelanceMSGCumulative(df,2)
-imbalanceMsg.shape
-
-# <codecell>
-
-imbalanceMsg_=imbalanceMsg.copy()
-
-# <codecell>
-
-imbalanceMsg_=imbalanceMsg_.append(imbalanceMsg)
-imbalanceMsg=imbalanceMsg_
-imbalanceMsg.index = range(imbalanceMsg.shape[0])
-imbalanceMsg.shape
+df.head()
 
 # <codecell>
 
@@ -72,15 +59,7 @@ imbalanceMsg.shape
 
 # <codecell>
 
-imbalanceMsg[(imbalanceMsg.Symbol=='SIRI') & (imbalanceMsg.Date=='2014-05-01')].head()
-
-# <codecell>
-
-df.head()
-
-# <codecell>
-
-stockData = df[(df.Symbol=="QQQ") & (df.Date=='2014-05-01')]
+stockData = df[(df.Symbol=="VTHR") & (df.Date=='2014-06-16')]
 
 # <codecell>
 
@@ -88,28 +67,13 @@ stockData
 
 # <codecell>
 
-    stockData = df[(df.Symbol=="QQQ") & (df.Date=='2014-05-01')]
-    
-    closeP = stockData[stockData.tSide=='YDAY'].tPrice
-    openP = stockData[stockData.Reason=='OPG'].tPrice
+reload(qimbs)
+fdf=qimbs.create_featuresCumulative(df,0)
 
-    bid = np.array(stockData[stockData.Reason=='Imbalance'].Bid_P)
-    if (len(bid)!=24):
-        print df.Symbol, df.Date
-        
-    
-    ask = np.array(stockData[stockData.Reason=='Imbalance'].Ask_P)    
-    midP = 0.5*(bid + ask)
-    bidS = np.array(stockData[stockData.Reason=='Imbalance'].Bid_S)
-    askS = np.array(stockData[stockData.Reason=='Imbalance'].Ask_S)  
+# <codecell>
 
-    ref = np.array(stockData[stockData.Reason=='Imbalance'].ImbRef)  
-    near = np.array(stockData[stockData.Reason=='Imbalance'].ImbCBC)  
-    far = np.array(stockData[stockData.Reason=='Imbalance'].ImbFar)  
-
-    
-
-
+fdf
+            
 
 # <codecell>
 

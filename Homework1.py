@@ -81,7 +81,7 @@ class Perceptron:
         M = len(pts)
         n_mispts = 0
         if (F==None):
-            F = G
+            F = self.G
             
         for x,s in pts:
             if F(x) != s:
@@ -130,6 +130,58 @@ class Perceptron:
     def check_error(self, M, vec):
         check_pts = self.generate_points(M)
         return self.classification_error(vec, pts=check_pts)
+
+# <codecell>
+
+p = Perceptron(100)
+p.plot()
+p.pla()
+
+# <codecell>
+
+for k in range(10):
+    i = randint(len(p.X))
+    tmp = p.X[i]
+    tmp = (tmp[0],-tmp[1])
+    p.X[i] = tmp
+    p.pla()
+    print p.classification_error()
+    tmp = p.X[i]
+    tmp = (tmp[0],-tmp[1])
+    p.X[i] = tmp
+
+# <codecell>
+
+i = randint(len(p.X))
+
+# <codecell>
+
+i
+
+# <codecell>
+
+tmp = p.X[i]
+tmp = (tmp[0],-tmp[1])
+p.X[i] = tmp
+
+# <codecell>
+
+p.pla()
+
+# <codecell>
+
+print p.classification_error()
+tmp = p.X[i]
+tmp = (tmp[0],-tmp[1])
+p.X[i] = tmp
+
+# <codecell>
+
+print p.classification_error()
+
+# <codecell>
+
+type(newX[0])
 
 # <codecell>
 

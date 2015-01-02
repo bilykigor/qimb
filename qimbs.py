@@ -440,158 +440,134 @@ def create_features33(imbalanceMsg):
     #Creating features for algorithm
     import numpy
     fdf = pd.DataFrame()
-    Features = dict()
 
     midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
     bid = imbalanceMsg.Bid_P
-    bidS = imbalanceMsg.Bid_S
-    #nbid = imbalanceMsg.nsdq_BP
-    #nbidS = imbalanceMsg.nsdq_BS
-    #nask = imbalanceMsg.nsdq_AP
-    #naskS = imbalanceMsg.nsdq_AS
-    #bid2 = imbalanceMsg.Bid2
-    #ask2 = imbalanceMsg.Ask2
+    bidS = imbalanceMsg.Bid_S    
+    min3 = imbalanceMsg[['ImbRef','ImbCBC','ImbFar']].apply(min,axis=1)
+    max3 = imbalanceMsg[['ImbRef','ImbCBC','ImbFar']].apply(max,axis=1)
     
-    ref = imbalanceMsg.ImbRef
+    f = lambda x: int(x[3]>0)*max(x[0],x[1])+\
+                  int(x[3]<0)*min(x[0],x[1])+\
+                  int(x[3]==0)*(x[0]+x[1])*0.5
+            
+    f = lambda x:2.0*x[0]*x[1]/(x[0]+x[1])
+    
+    f = lambda x: int(x[3]>0)*(0.85*min(x[0],x[1])+0.15*max(x[0],x[1]))+\
+                  int(x[3]<0)*(0.15*min(x[0],x[1])+0.85*max(x[0],x[1]))+\
+                  int(x[3]==0)*(x[0]+x[1])*0.5
+            
+    f = lambda x:  (x[0] + x[1] +  0.5*(x[4] + x[5]))/3.0
+    
+    f = lambda x:  int(x[3]>0)*\
+                   (
+                   (min(x[0],x[1])> x[4])*(x[0]+x[1])*0.5+\
+                   (min(x[0],x[1])<=x[4])*(0.85*min(x[0],x[1])+0.15*max(x[0],x[1])))+\
+                   int(x[3]<0)*\
+                   ((max(x[0],x[1])<x[4])*(x[0]+x[1])*0.5+\
+                   (max(x[0],x[1])>=x[4])*(0.15*min(x[0],x[1])+0.85*max(x[0],x[1])))+\
+                   int(x[3]==0)*(x[0]+x[1])*0.5
+    
+    imbalanceMsg['Mid_P'] = 0.5*( imbalanceMsg.Ask_P +  imbalanceMsg.Bid_P)
+    ref = imbalanceMsg[['ImbRef','ImbCBC','ImbFar','ImbShares','Mid_P']].apply(f,axis=1)
+    #ref = imbalanceMsg.ImbRef
     ask = imbalanceMsg.Ask_P
     askS = imbalanceMsg.Ask_S
     near = imbalanceMsg.ImbCBC
     far = imbalanceMsg.ImbFar
     closeP = imbalanceMsg.PrevCLC_P
+    spread = ask - bid
     
     fdf['Symbol'] = imbalanceMsg.Symbol
+    
     fdf['Date'] = imbalanceMsg.Date
-
-    fdf['Move'] = imbalanceMsg.Move
-    Features['Move'] = 'Move'
-    
-    fdf['Pnl'] = imbalanceMsg.OPC_P/imbalanceMsg.ImbRef-1
-    Features['Pnl'] = 'OPC/Ref-1'
-    
-    fdf['MoveR'] = (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares>0)+\
-     (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares<0)     
-    Features['MoveR'] = 'MoveR'
-    
-    fdf['CMoveR'] = imbalanceMsg.Move
-    fdf.CMoveR = 0
-    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)] = 2
-    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P<=imbalanceMsg.ImbRef)\
-              & (imbalanceMsg.OPC_P>=imbalanceMsg.Ask_P)] = 1
-    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)] = -2
-    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P>=imbalanceMsg.ImbRef)\
-              & (imbalanceMsg.OPC_P<=imbalanceMsg.Bid_P)] = -1   
-    Features['CMoveR'] = 'CMoveR'
-    
-    fdf['CMove'] = imbalanceMsg.Move
-    fdf.CMove = 0
-    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.1] = 2
-    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0)
-              & (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.1)] = 1
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.1)] = -2
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0)
-              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.1)] = -1
-    Features['CMove'] = 'CMove'
-       
         
+    fdf['OPC_P'] = imbalanceMsg.OPC_P
+    
+    fdf['Ask_P'] = ask
+    
+    fdf['Bid_P'] = bid
+    
+    fdf['Mid_P'] = midP
+    #---------------------------------
         
-    fdf['Bid'] = bid/ref-1
-    Features['Bid'] = 'Bid(9.28)'
+    fdf['Bid'] = ref/bid-1
     
-    fdf['Ask'] = ask/ref-1
-    Features['Ask'] = 'Ask(9.28)'
-    
+    fdf['Ask'] = ask/ref-1   
         
-    fdf['BidD'] = bid-ref
-    Features['BidD'] = 'BidD'
+    fdf['BidD'] = bid - ref
     
-    fdf['AskD'] = ask - ref
-    Features['AskD'] = 'AskD'
+    fdf['AskD'] = ref - ask
+    #---------------------------------
     
-    
-    fdf['a1'] = fdf['Bid']*fdf['Ask']
-    Features['a1'] = 'Bid*Ask'
-       
-       
     fdf['Near'] = near/ref-1
-    Features['Near'] = 'Near(9.28)'
     
     fdf['Far'] = far/ref-1
-    Features['Far'] = 'Far(9.28)'
-        
-    fdf['PrevCLC'] = closeP/ref-1
-    Features['PrevCLC'] = 'PrevCLC'
     
-    fdf['Spread'] = (ask - bid)/ref
-    Features['Spread'] = '(Ask-Bid) at 9.28'
-
-    fdf['D3'] = 100*(midP/closeP-1)
-    Features['D3'] = 'Mid(9.28)/CloseCross(day before)-1'
-    
-    
+    fdf['Spread'] = spread/ref
+    #---------------------------------
     
     fdf['D4'] = 100*(bid-ref)/closeP
-    Features['D4'] = '(Bid(9.28)-ImbRef(9.28))/CloseCross(day before)'
 
     fdf['D5'] = 100*(ref-ask)/closeP
-    Features['D5'] = '(ImbRef(9.28)-Ask(9.28))/CloseCross(day before)'       
-    
-    
-    
-    fdf['D444'] = (bid-ref)/(1+ask - bid)
-    Features['D444'] = '(Bid(9.28)-ImbRef(9.28))/1+Spread'
+    #---------------------------------
+        
+    fdf['D444'] = (bid-ref)/(1+spread)
 
-    fdf['D555'] = (ref-ask)/(1+ask - bid)
-    Features['D555'] = '(ImbRef(9.28)-Ask(9.28))/1+Spread'
-    
-    
-    
-    fdf['D7'] = 100*(ref/closeP-1)
-    Features['D7'] = 'ImbRef(9.28)/CloseCross(day before)-1'
+    fdf['D555'] = (ref-ask)/(1+spread)
+    #---------------------------------
     
     fdf['D66'] = 100*(ref/midP-1)
-    Features['D66'] = 'ImbRef(9.28)/Mid-1'
-
+    #---------------------------------
+    
     fdf['V1'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+np.abs(imbalanceMsg.ImbShares))
-    Features['V1'] = '(Ask_S-Bid_S) at 9.28/Imbalance(9.28)'
     
     fdf['V1n'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+np.abs(imbalanceMsg.ImbShares))
-    Features['V1n'] = 'V1n'
     
     fdf['V11'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+imbalanceMsg.ImbPaired)
-    Features['V11'] = '(Ask_S-Bid_S) at 9.28/PairedS(9.28)'
     
     fdf['V11n'] =numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+imbalanceMsg.ImbPaired)
-    Features['V11n'] = 'V11n'
+    #---------------------------------
     
     fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
-    Features['V8'] = 'ImbalanceS(9.28)/PairedS(9.28)'
     
     fdf['V8n'] = imbalanceMsg.ImbShares/((askS + bidS)/2+imbalanceMsg.ImbPaired)
-    Features['V8n'] = 'V8n'
     
     fdf['V8nn'] = (imbalanceMsg.ImbShares-(askS - bidS))/((askS + bidS)/2+imbalanceMsg.ImbPaired)
-    Features['V8nn'] = 'V8nn'
-         
-    fdf['a3'] = fdf['D3']*fdf['D4']
-    
+    #---------------------------------
+        
+    fdf['a1'] = fdf['Bid']*fdf['Ask']
+
     fdf['a4'] = fdf['D5']*fdf['D4']
-    Features['a4'] = Features['D5'] + ' Multiply ' + Features['D4']
     
     fdf['a5'] = fdf['D444']*fdf['D555']
-    Features['a5'] = Features['D444'] + ' Multiply ' + Features['D555']
+    #---------------------------------
+       
+    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
     
+    fdf['y'] = 1*(imbalanceMsg.OPC_P>ask) -  1*(imbalanceMsg.OPC_P<bid)
+        
+    fdf['PrevCLC'] = closeP/ref-1   
+
+    fdf['D3'] = 100*(midP/closeP-1)
+        
+    fdf['D7'] = 100*(ref/closeP-1)
+    
+    fdf['a3'] = fdf['D3']*fdf['D4']
+       
     fdf['a6'] = fdf['D444']*fdf['D444']
-    Features['a6'] = Features['D444'] + ' Multiply ' + Features['D444']
     
     fdf['a7'] = fdf['D555']*fdf['D555']
-    Features['a7'] = Features['D555'] + ' Multiply ' + Features['D555']
-            
-    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
-    Features['a14'] = 'Sign of Imbalance'
     
+    fdf['p'] = numpy.floor(fdf['Mid_P']/50)
+    
+    #fdf = fdf[max3-min3<0.5*ref]
+        
     fdf.index = range(fdf.shape[0])
     
-    return fdf, Features
+    return fdf
+
+# <codecell>
 
 def create_features4(imbalanceMsg):  
     #Creating features for algorithm
@@ -801,8 +777,8 @@ def get_imbalanceMSG2(df,nImb):
     (imbalanceMsg.ImbCBC>0) &
     (imbalanceMsg.ImbFar>0) &
     (imbalanceMsg.Ask_P>0) &
-    (imbalanceMsg.Bid_P>0) &
-    (imbalanceMsg.ImbShares!=0)
+    (imbalanceMsg.Bid_P>0) #&
+    #(imbalanceMsg.ImbShares!=0)
     ]
     imbalanceMsg.index = range(imbalanceMsg.shape[0])
 
@@ -934,6 +910,9 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     labels =  numpy.sort(list(set(y)))
     test_cm = np.zeros((len(labels),len(labels)))
     train_cm = np.zeros((len(labels),len(labels)))
+    
+    CLF_BEST = clf_class()
+    TEST_F_Score = 0
     
     for i in range(n_folds): 
         #======Get test_train_split=============
@@ -1097,20 +1076,21 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                 continue;
             
         else: 
-                if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
-                    clf = clf_class(class_weight='auto')
+                if (type(clf_class()) ==  type(LR())) :
+                    clf = clf_class(class_weight='auto',C=0.1)
+                if (type(clf_class()) ==  type(SVC())):
+                    clf = clf_class(class_weight='auto',probability=True)
                 if (type(clf_class()) ==  type(RF())):
-                    clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05, \
-                                    criterion = 'entropy')
+                    #print 1
+                    clf = clf_class(n_jobs=4,min_samples_split = Xtrain.shape[0]*0.05, \
+                                   criterion = 'entropy', n_estimators = 10)# min_samples_leaf = Xtrain.shape[0]*0.05,
                 if (type(clf_class()) ==  type(GBC())):
                     clf = clf_class(min_samples_split = Xtrain.shape[0]*0.05,init='zero')#min_samples_split = Xtrain.shape[0]*0.05
                 if (type(clf_class()) ==  type(GBR())):
                     clf = clf_class(init='zero')
 
-                #z = float(len(ytrain[ytrain==0]))
-                #nall = float(len(ytrain))
-                #ample_weight = np.array([(nall-z)/nall if i == 0 else z/nall for i in ytrain])
                 clf.fit(Xtrain,ytrain)
+                #print type(clf)
             
                 if (type(clf_class()) !=  type(GBR())):
                     probaTest = clf.predict_proba(Xtest).astype(float)
@@ -1119,8 +1099,10 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                     ypred = clf.classes_[numpy.argmax(probaTest,axis=1)]
                     ypredTrain = clf.classes_[numpy.argmax(probaTrain,axis=1)]  
 
-                    test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+                    test_cm_tmp = confusion_matrix(ytest,ypred,labels).astype(float)
+                    test_cm += test_cm_tmp/n_folds
                     train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
+                    
                 else:
                     probaTest = clf.predict(Xtest).astype(float)
                     probaTrain = clf.predict(Xtrain).astype(float)
@@ -1128,12 +1110,27 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
                     ypred = probaTest>0.5
                     ypredTrain = probaTrain>0.5  
 
-                    test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
+                    test_cm_tmp = confusion_matrix(ytest,ypred,labels).astype(float)
+                    test_cm += test_cm_tmp/n_folds
                     train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds 
-        
+                    
+                pr =  Precision_Recall(test_cm_tmp, labels)
+                #print pr
+                if (pr[2]>TEST_F_Score):
+                     TEST_F_Score =  pr[2]
+                     CLF_BEST = clf  
+    
+    
+    #print TEST_ERRORS
+    print "max F_Score ",TEST_F_Score
+    
+    #print CLF_BEST
+
     test_pr = Precision_Recall(test_cm, labels)
     train_pr = Precision_Recall(train_cm, labels)    
-    return 1-train_pr[2], 1-test_pr[2], test_cm
+    return 1-train_pr[2], 1-test_pr[2], test_cm, CLF_BEST, TEST_F_Score
+
+# <codecell>
 
 def dates_tmp_df(fdf):
     import numpy
@@ -1246,15 +1243,15 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     fig1 = plt.figure(figsize=(15, 5))
     plt.clf()
     ax1 = fig1.add_subplot(1,3,1)
-    trainError, testError, cm = run_cv_proba(input,target,clf_class,10,1,dates,datesDF,**kwargs)
+    trainError, testError, cm, clf, fscore = run_cv_proba(input,target,clf_class,30,1,dates,datesDF,**kwargs)
     draw_confusion_matrix(cm,  numpy.sort(list(set(target))), fig1, ax1)
     ERRORS.loc[ERRORS.shape[0]] =[str(clf_class).split('.')[-1].strip('>'),trainError,testError]
     pr = Precision_Recall(cm,numpy.sort(list(set(target))))
     cm2return=cm
     print 'Precision - %s, Recall - %s, F_Score - %s' % (pr[0],pr[1],pr[2])
 
-    if clf_class=='NN':
-        return
+    #if clf_class=='NN':
+    return cm2return
     
     #Show learning curves
     TrainError=[]
@@ -1262,7 +1259,7 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     nDays = len(dates)
     testRange = range(nDays-1)
     for i in testRange: 
-        trainError, testError, cm = run_cv_proba(input,target,clf_class,5,i+1,dates,datesDF,**kwargs)
+        trainError, testError, cm, clf, fscore = run_cv_proba(input,target,clf_class,5,i+1,dates,datesDF,**kwargs)
         #print i,testError
         TrainError.append(trainError)
         TestError.append(testError)
@@ -1794,7 +1791,7 @@ def Tree2Txt(clf,t,fileName):
     from sklearn.ensemble import GradientBoostingRegressor as GBR
     if (type(clf) !=  type(GBR())):
         for i in range(t.capacity):
-            s= '%d;%f;' % (t.feature[i],t.threshold[i])
+            s= '%d;%.19f;' % (t.feature[i],t.threshold[i])
             if t.n_classes[0]==1:
                 s +='%s;' % str(t.value[i][0][0])
             else:
@@ -1807,16 +1804,59 @@ def Tree2Txt(clf,t,fileName):
             f.write(s+'\n')
     else:
         for i in range(t.capacity):
-            s= '%d;%f;' % (t.feature[i],t.threshold[i])
+            s= '%d;%.19f;' % (t.feature[i],t.threshold[i])
             s +='%s;' % str(t.value[i][0][0]*clf.learning_rate*clf.n_estimators)
             f.write(s+'\n')
     f.close()
+    
+def Tree2Sql(clf,t,RFID,ID, datatypes,con):
+    data = np.zeros((t.capacity+3,7))
+    data[:,0] = RFID
+    data[:,1] = ID
+    dataID = datatypes[datatypes.Name=='data'].ID
+    data[3:,2] = dataID
+    
+    data[0,2:] = [datatypes[datatypes.Name=='n_classes'].ID,t.n_classes[0],0,0,0]
+    data[1,2:] = [datatypes[datatypes.Name=='n_features'].ID,t.n_features,0,0,0]
+    data[2,2:] = [datatypes[datatypes.Name=='capacity'].ID,t.capacity,0,0,0]
+    
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    if (type(clf) !=  type(GBR())):
+        for i in range(t.capacity):
+            data[i+3,3] = i
+            data[i+3,4] = t.feature[i]
+            data[i+3,5] = t.threshold[i]
+            if t.n_classes[0]==1:
+                data[i+3,6] = t.value[i][0][0]
+            else:
+                Sum = sum(t.value[i][0])
+
+                if Sum>0:
+                    data[i+3,6] = t.value[i][0][0]/Sum
+                else:
+                    data[i+3,6] = 0 
+
+                if (data[i+3,6]>1):
+                    print data[i+3,6]
+    else:
+        for i in range(t.capacity):
+            data[i+3,3] = i
+            data[i+3,4] = t.feature[i]
+            data[i+3,5] = t.threshold[i]   
+            data[i+3,6] = t.value[i][0][0]*clf.learning_rate*clf.n_estimators
+    
+    df = pd.DataFrame(data,columns=['RFID','TreeID','DataTypeID','Ind','Feature','Threshold','Probability'])
+    df.to_sql('RFdata',con,index=False,if_exists='append')  
+    con.commit()
+    #return df
+
+# <codecell>
 
 def TreeTest2Txt(clf,X,fileName):
     f = open(fileName, 'w+')
     from sklearn.ensemble import GradientBoostingRegressor as GBR
     from sklearn.ensemble import GradientBoostingClassifier as GBC
-    if ((type(clf) ==  type(GBR())) | (type(clf) ==  type(GBC()))):
+    if (type(clf) ==  type(GBR())):
         proba = clf.predict(X)
         for i in range(X.shape[0]):
             s= ''
@@ -1824,27 +1864,93 @@ def TreeTest2Txt(clf,X,fileName):
                 s +='%s;' %  str(X.ix[i,j])
             s +='%s;' %  str(proba[i])
             f.write(s+'\n')
-    else:
-        if (clf.estimators_[0].tree_.n_classes[0]==1):
-            proba = clf.predict(X)
-            for i in range(X.shape[0]):
-                s= ''
-                for j in range(X.shape[1]):
-                    s +='%s;' %  str(X.ix[i,j])
-                s +='%s;' %  str(proba[i])
-                f.write(s+'\n')
-        else:
-            proba = clf.predict_proba(X)
-            for i in range(X.shape[0]):
-                s= ''
-                for j in range(X.shape[1]):
-                    s +='%s;' %  str(X.ix[i,j])
-                for j in range(proba.shape[1]):
-                    s +='%s;' %  str(proba[i,j])
-                f.write(s+'\n')
-
-    f.close()
+        f.close()
+        return
     
+    if (type(clf) ==  type(GBC())):
+        proba = clf.predict_proba(X)
+        for i in range(X.shape[0]):
+            s= ''
+            for j in range(X.shape[1]):
+                s +='%s;' %  str(X.ix[i,j])
+            for j in range(proba.shape[1]):
+                s +='%s;' %  str(proba[i,j])
+            f.write(s+'\n')
+        f.close()
+        return
+
+    #regression
+    if (clf.estimators_[0].tree_.n_classes[0]==1):
+        proba = clf.predict(X)
+        for i in range(X.shape[0]):
+            s= ''
+            for j in range(X.shape[1]):
+                s +='%s;' %  str(X.ix[i,j])
+            s +='%s;' %  str(proba[i])
+            f.write(s+'\n')
+        f.close()
+        return
+    
+    #classification
+    proba = clf.predict_proba(X)
+    for i in range(X.shape[0]):
+        s= ''
+        for j in range(X.shape[1]):
+            s +='%s;' %  str(X.ix[i,j])
+        for j in range(proba.shape[1]):
+            s +='%s;' %  str(proba[i,j])
+        f.write(s+'\n')
+    f.close()
+    return
+
+def TreeTest2Sql(clf,X,RFID,Type,Side,con):
+    if (Type==0):
+        proba = clf.predict_proba(X)
+        df = pd.DataFrame(proba[:,0], columns = ['Probability'])
+    else:
+        proba = clf.predict(X)
+        df = pd.DataFrame(proba, columns = ['Probability'])
+    df["RFID"] = RFID
+    df["Side"] = Side
+    df["Ind"] = range(X.shape[0])
+    df.to_sql('TestResults',con,index=False,if_exists='append')
+    con.commit()
+    
+def TestData2Sql(side,X,y,db):
+    import sqlite3 as lite
+    import sys
+        
+    con = None
+    
+    try:
+        con = lite.connect(db, timeout=10)
+        cur = con.cursor()    
+        cur.execute('SELECT SQLITE_VERSION()')
+        con.commit()
+        data = cur.fetchone()
+        print "SQLite version: %s" % data  
+        
+    except lite.Error, e:
+        print "Error %s:" % e.args[0]
+        con.close()
+        return     
+        
+    df = X.copy()
+    df.columns = ['F0','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','F13','F14','F15','F16','F17']
+    df["Side"] = side
+    df["YSide"] = 0
+    df.YSide[y>0] = 1
+    df.YSide[y<0] = -1
+    df["Ind"] = range(df.shape[0])
+    df["IndPos"] = -1
+    df["IndNeg"] = -1
+    df.IndPos[(df.Side==1)  & (df.YSide==-1)] = range(df.YSide[(df.Side==1)  & (df.YSide==-1)].shape[0])
+    df.IndNeg[(df.Side==-1) & (df.YSide==-1)] = range(df.YSide[(df.Side==-1) & (df.YSide==-1)].shape[0])
+    df.to_sql('TestFeatures',con,index=False,if_exists='append')
+    con.commit()
+
+# <codecell>
+
 def Forest2Txt(clf,X,Dir):
     from sklearn.ensemble import GradientBoostingRegressor as GBR
     from sklearn.ensemble import GradientBoostingClassifier as GBC
@@ -1855,15 +1961,113 @@ def Forest2Txt(clf,X,Dir):
         for i in range(clf.n_estimators):
             Tree2Txt(clf,clf.estimators_[i].tree_,Dir + '/%u.t' % i)
     TreeTest2Txt(clf,X,Dir + '/test.u')
+    
+def Forest2Sql(clf,X,Type,Side,Advantage,Precision,db):
+    #Create connection
+    import sqlite3 as lite
+    import sys
+    import pandas as pd
+    import time
+        
+    con = None
+    
+    try:
+        con = lite.connect(db, timeout=10)
+        cur = con.cursor()    
+        cur.execute('SELECT SQLITE_VERSION()')
+        con.commit()
+        data = cur.fetchone()
+        print "SQLite version: %s" % data  
+        
+    except lite.Error, e:
+        print "Error %s:" % e.args[0]
+        con.close()
+        return     
+        
+    #Clear data for this RF
+    datatypes = pd.read_sql("SELECT * FROM RFdatatypes", con)
+    con.commit()
+
+    df = pd.read_sql("SELECT * FROM RFnames", con)
+    con.commit()
+      
+    if df.shape[0]>0:
+        RFID = df.ID.max()+1
+    else: 
+        RFID = 0
+        
+    df = pd.DataFrame(columns=['ID','Type','Side','NTrees','Advantage'])
+    
+    #regression
+    from sklearn.ensemble import GradientBoostingRegressor as GBR
+    from sklearn.ensemble import GradientBoostingClassifier as GBC
+    if (type(clf) ==  type(GBR())):
+        Type = 1
+        Advantage = 0
+    else:
+        if (clf.estimators_[0].tree_.n_classes[0]==1):
+            Type = 1
+            Advantage = 0
+        #classification
+        else:
+            Type = 0
+    
+    df = df.append({'ID':RFID,'Type':Type,'Side':Side,'NTrees':clf.n_estimators,'Advantage':Advantage,'Precision':Precision},ignore_index=True) 
+    df.to_sql('RFnames',con,index=False,if_exists='append')
+    con.commit()
+        
+    #Write RF data 
+    if ((type(clf) ==  type(GBR())) | (type(clf) ==  type(GBC()))):
+        for i in range(clf.n_estimators):
+            Tree2Sql(clf,clf.estimators_[i][0].tree_,RFID, i,datatypes,con)
+    else:
+        for i in range(clf.n_estimators):
+            Tree2Sql(clf,clf.estimators_[i].tree_,RFID, i, datatypes,con)
+    
+    TreeTest2Sql(clf,X,RFID,Type,Side,con)
+    
+    con.commit()
+    con.close()   
+
+# <codecell>
+
+def DropDB(db):
+    import sqlite3 as lite
+    import sys
+        
+    con = None
+    
+    try:
+        con = lite.connect(db, timeout=10)
+        cur = con.cursor()    
+        cur.execute('SELECT SQLITE_VERSION()')
+        con.commit()
+        data = cur.fetchone()
+        print "SQLite version: %s" % data  
+        
+    except lite.Error, e:
+        print "Error %s:" % e.args[0]
+        con.close()
+        return     
+    
+    cur = con.execute("DELETE FROM RFdata")
+    con.commit()
+    cur = con.execute("DELETE FROM RFnames")
+    con.commit()
+    cur = con.execute("DELETE FROM TestFeatures")
+    con.commit()
+    cur = con.execute("DELETE FROM TestResults")
+    con.commit()
+    con.close()
 
 # <codecell>
 
 def visualize_tree(clf):
     from sklearn.ensemble import GradientBoostingRegressor as GBR
     if (type(clf) !=  type(GBR())):
-        t=clf.estimators_[0].tree_
+        t=clf.estimators_[9].tree_
     else:
-        t=clf.estimators_[0][0].tree_
+        t=clf.estimators_[9][0].tree_
     from sklearn.externals.six import StringIO  
     import pydot
     from sklearn import tree
@@ -1876,56 +2080,163 @@ def visualize_tree(clf):
 # <codecell>
 
 def create_featuresCumulative(df,nImb):
+    import pandas as pd
+    import numpy 
     
     stocks = set(df.Symbol)
     dates = set(df.Date)
     
+    #fdf = pd.DataFrame(columns=['Ask','AskD','Near','Far','Spread',
+    #'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
+    #'V8','V8n','V8nn', 'a1','a4','a5','a14','y'])
+    
+    fdf = numpy.zeros((len(stocks)*len(dates),20))
+    
+    n = 0
     for date in dates:
+        print date
         for stock in stocks:
-            stockData = df[(df.Symbol==stock) & (df.Date==dates)]
+            
+            #if (n>10):
+            #   return fdf  
+            
+            #print stock
+            
+            stockData = df[(df.Symbol==stock) & (df.Date==date)]
+    
+            closeP = np.array(stockData[stockData.tSide=='YDAY'].tPrice)
+            if (len(closeP)==0):
+                continue;
+            else:
+                closeP = closeP[0]
+            
+            openP = np.array(stockData[stockData.Reason=='OPG'].tPrice)
+            if (len(openP)==0):
+                continue;
+            else:
+                openP = openP[0]
+            
+            if (closeP==0):  
+                continue;
+            if (openP==0):   
+                continue;
 
-            closeP = stockData[stockData.tSide=='YDAY'].tPrice
-            openP = stockData[stockData.Reason=='OPG'].tPrice           
-            
-            if (openP<=0): continue;  
-            
             bid = np.array(stockData[stockData.Reason=='Imbalance'].Bid_P)
             if (len(bid)!=24):
-                print df.Symbol, df.Date
-            bid = bid[:nImb];
-
-            ask = np.array(stockData[stockData.Reason=='Imbalance'].Ask_P)  
-            ask = ask[:nImb];
+                if (len(bid)!=0):
+                    print stock, len(bid)
+                continue;
+                                
+            ask = np.array(stockData[stockData.Reason=='Imbalance'].Ask_P)    
             midP = 0.5*(bid + ask)
-            midP = midP[:nImb];
+            spread = ask - bid
             bidS = np.array(stockData[stockData.Reason=='Imbalance'].Bid_S)
-            bidS = bidS[:nImb];
-            askS = np.array(stockData[stockData.Reason=='Imbalance'].Ask_S) 
-            askS = askS[:nImb];
+            askS = np.array(stockData[stockData.Reason=='Imbalance'].Ask_S)  
+            spreadS = askS - bidS
+            midS = 0.5*(bidS + askS)
 
-            ref = np.array(stockData[stockData.Reason=='Imbalance'].ImbRef) 
-            ref = ref[:nImb];
+            ref = np.array(stockData[stockData.Reason=='Imbalance'].ImbRef)  
             near = np.array(stockData[stockData.Reason=='Imbalance'].ImbCBC)  
-            near = near[:nImb];
-            far = np.array(stockData[stockData.Reason=='Imbalance'].ImbFar)  
-            far = far[:nImb];    
+            far = np.array(stockData[stockData.Reason=='Imbalance'].ImbFar) 
             
-            if ((ref<=0).any()):                continue;
-            if ((near<=0).any()):               continue;    
-            if ((far<=0).any()):                continue;   
-            if ((ask<=0).any()):                continue;    
-            if ((bid<=0).any()):                continue;    
+            imbShares = np.array(stockData[stockData.Reason=='Imbalance'].ImbShares)  
+            imbPaired = np.array(stockData[stockData.Reason=='Imbalance'].ImbPaired)  
+            #====================================================================
+            #Creating features
+            #====================================================================
+            
+            if (ref[nImb]<=0):                  continue;
+            if (near[nImb]<=0):                  continue;   
+            if (far[nImb]<=0):                  continue;  
+            if (ask[nImb]<=0):                  continue;    
+            if (bid[nImb]<=0):                  continue;    
     
-    # &
-    #(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
-    # 1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) &
-    #(imbalanceMsg.ImbShares!=0)
-    
-            fdf['Symbol'] = imbalanceMsg.Symbol
-            fdf['Date'] = imbalanceMsg.Date
- 
-      
-    return imbalanceMsg   
+            
+            tmpBid = bid[nImb]/ref[nImb]-1
+               
+            tmpAsk = ask[nImb]/ref[nImb]-1   
+
+            #fdf['BidD'] = bid-ref
+
+            tmpAskD = ask[nImb] - ref[nImb]   
+
+            tmpa1 = tmpBid*tmpAsk        
+
+            tmpNear = near[nImb]/ref[nImb]-1
+
+            tmpFar = far[nImb]/ref[nImb]-1
+
+            #fdf['PrevCLC'] = closeP/ref-1
+
+            tmpSpread = spread[nImb]/ref[nImb]
+
+            #fdf['D3'] = 100*(midP/closeP-1)
+
+            tmpD4 = 100*(bid[nImb]-ref[nImb])/closeP
+
+            tmpD5 = 100*(ref[nImb]-ask[nImb])/closeP
+
+            tmpD444 = (bid[nImb]-ref[nImb])/(1+spread[nImb])
+
+            tmpD555 = (ref[nImb]-ask[nImb])/(1+spread[nImb])
+
+            #fdf['D7'] = 100*(ref/closeP-1)
+
+            tmpD66 = 100*(ref[nImb]/midP[nImb]-1)
+
+            tmpV1 = numpy.sign(imbShares[nImb])*\
+            (askS[nImb] - bidS[nImb])/(100+np.abs(imbShares[nImb]))
+
+            tmpV1n = numpy.sign(imbShares[nImb])*spreadS[nImb]/(midS[nImb]+np.abs(imbShares[nImb]))
+
+            tmpV11 = numpy.sign(imbShares[nImb])*spreadS[nImb]/(100+imbPaired[nImb])
+
+            tmpV11n =numpy.sign(imbShares[nImb])*spreadS[nImb]/(midS[nImb]+imbPaired[nImb])
+
+            tmpV8 = imbShares[nImb]/(100+imbPaired[nImb])
+
+            tmpV8n = imbShares[nImb]/(midS[nImb]+imbPaired[nImb])
+
+            tmpV8nn = (imbShares[nImb]-spreadS[nImb])/(midS[nImb]+imbPaired[nImb])
+
+            #fdf['a3'] = fdf['D3']*fdf['D4']
+
+            tmpa4 = tmpD5*tmpD4
+
+            tmpa5 = tmpD444*tmpD555
+
+            #fdf['a6'] = fdf['D444']*fdf['D444']
+
+            #fdf['a7'] = fdf['D555']*fdf['D555']
+
+            tmpa14 = np.sign(imbShares[nImb])
+        
+            if (imbShares[nImb]>0):
+                tmpy = openP>ask[nImb]
+            else:
+                if (imbShares[nImb]<0):
+                    tmpy = openP<bid[nImb]
+                else:
+                    if (imbShares[nImb]==0):
+                        tmpy = 0
+        
+            fdf[n,:] = [tmpAsk,tmpAskD,tmpNear,tmpFar,tmpSpread,\
+                        tmpD5,tmpD555,tmpD66,tmpV1,tmpV1n,\
+                        tmpV11,tmpV11n,tmpV8,tmpV8n,tmpV8nn,\
+                        tmpa1,tmpa4,tmpa5,tmpa14,tmpy]
+            
+            n+=1
+        
+            # &
+            #(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
+            # 1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) &
+            #(imbShares!=0)
+                
+            #X_pos=X_pos[['Ask','AskD','Near','Far','Spread',
+            # 'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
+            # 'V8','V8n','V8nn', 'a1','a4','a5']]
+            
+        return fdf[:n,:]   
 
 # <codecell>
 
@@ -2033,4 +2344,95 @@ def create_featuresCumulative2(imbalanceMsg):
     fdf.index = range(fdf.shape[0])
     
     return fdf, Features
+
+# <codecell>
+
+def createFeatures34(fdf):
+    import itertools
+    initNumFeatures = fdf.shape[1]
+    diffsInd = [x for x in itertools.combinations(range(initNumFeatures),2)]
+    d_fdf = pd.DataFrame()
+    for i in range(len(diffsInd)):
+        #print i, diffsInd[i]
+        d_fdf["d"+str(i)] = fdf.ix[:,diffsInd[i][0]]-fdf.ix[:,diffsInd[i][1]]
+    return d_fdf
+def createFeatures35(X_pos):
+    dfdf=createFeatures34(X_pos)
+    df=pd.DataFrame()
+    for i in range(X_pos.shape[1]):
+        for j in range(dfdf.shape[1]):
+            tmp=X_pos.ix[:,i]
+            tmp.ix[tmp.ix[:]==0]=1
+            df[str(j)+str(i)]=dfdf.ix[:,j]/X_pos.ix[:,i]
+    return pd.concat([dfdf,df], axis=1)
+
+def createFeaturesBench(X_pos):
+    X_pos_Benchmark = pd.DataFrame()
+    X_pos_Benchmark['Ask'] = X_pos.Ask/X_pos.Ref-1
+    X_pos_Benchmark['Bid'] = X_pos.Bid/X_pos.Ref-1
+    X_pos_Benchmark['AskD'] = X_pos.Ask-X_pos.Ref
+    X_pos_Benchmark['Near'] = X_pos.Near/X_pos.Ref-1
+    X_pos_Benchmark['Far'] = X_pos.Far/X_pos.Ref-1
+    X_pos_Benchmark['Spread'] = X_pos.Ask-X_pos.Bid
+    X_pos_Benchmark['D4'] = 100*(X_pos.Bid-X_pos.Ref)/X_pos.CloseP
+    X_pos_Benchmark['D5'] = 100*(X_pos.Ref-X_pos.Ask)/X_pos.CloseP
+
+    X_pos_Benchmark['D444'] = (X_pos.Bid-X_pos.Ref)/(1+X_pos_Benchmark['Spread'])
+    X_pos_Benchmark['D555'] = (X_pos.Ref-X_pos.Ask)/(1+X_pos_Benchmark['Spread'])
+    X_pos_Benchmark['D66'] = 100*(X_pos.Ref/(0.5*(X_pos.Ask+X_pos.Bid))-1)
+    X_pos_Benchmark['a1'] = X_pos_Benchmark['Ask']*X_pos_Benchmark['Bid']
+    X_pos_Benchmark['a4'] = X_pos_Benchmark['D4']*X_pos_Benchmark['D5']
+    X_pos_Benchmark['a5'] = X_pos_Benchmark['D444']*X_pos_Benchmark['D555']
+    
+    X_pos_Benchmark['Spy1'] = (X_pos.BidSPY+X_pos.AskSPY)/X_pos.ClosePSPY
+    X_pos_Benchmark['Spy1'] /= (X_pos.Bid+X_pos.Ask)/X_pos.CloseP  
+    #X_pos_Benchmark['Spy1'] /= (X_pos.Bid-X_pos.Ask)
+    #X_pos_Benchmark['Spy1'] *= (X_pos.BidSPY-X_pos.AskSPY)
+
+    return X_pos_Benchmark
+
+def autocreateFeatures(X_pos,y_pos,ind):
+    from sklearn.ensemble import RandomForestClassifier as RF
+    clf = RF(min_samples_split = X_pos.shape[0]*0.05, criterion = 'entropy',n_estimators =10)
+    if ind==1:
+        newX_pos=createFeatures35(X_pos)
+    else:
+        newX_pos=createFeatures34(X_pos)
+    
+    clf.fit(newX_pos,y_pos)
+
+    fi = pd.DataFrame()
+    fi['Feature'] = list(newX_pos.columns)
+    fi['Impotrance'] = clf.feature_importances_
+    fi=fi.sort(columns=['Impotrance'],ascending=False)
+    fi['Index'] = range(newX_pos.shape[1])
+    fi.index = fi['Index']
+
+    for i in range(fi.shape[0]):
+        if (fi['Impotrance'][i]<0.005):
+            break
+        #print fi['Feature'][i]
+
+    newX_pos = newX_pos[fi['Feature'][:i]]
+
+    #Stage 2
+    poly = PolynomialFeatures(2)
+    newX_pos_2=pd.DataFrame(poly.fit_transform(newX_pos))
+    clf.fit(newX_pos_2,y_pos)
+
+    fi = pd.DataFrame()
+    fi['Feature'] = list(newX_pos_2.columns)
+    fi['Impotrance'] = clf.feature_importances_
+    fi=fi.sort(columns=['Impotrance'],ascending=False)
+    fi['Index'] = range(newX_pos_2.shape[1])
+    fi.index = fi['Index']
+
+    for i in range(fi.shape[0]):
+        if (fi['Impotrance'][i]<0.01):
+            break
+        #print fi['Feature'][i]
+
+    newX_pos_2 = newX_pos_2[fi['Feature'][:i]]
+
+    return newX_pos_2
 

@@ -3,46 +3,81 @@
 
 # <codecell>
 
-rand(10)
+import pandas as pd
+import numpy as np
 
 # <codecell>
 
+indata = pd.read_csv("indata", delimiter='  ',header = None, names = ['x1','x2','y'])
+outdata = pd.read_csv("outdata", delimiter='  ',header = None, names = ['x1','x2','y'])
 
 # <codecell>
 
-for i in range(10):
-    print randint(0,1)
+def transform(data,k):
+    result = data[['x1','x2']].copy()
+    result['c'] = 1
+    if k>=3:
+        result['x1x1'] = data.x1*data.x1
+    if k>=4:
+        result['x2x2'] = data.x2*data.x2
+    if k>=5:
+        result['x1x2'] = data.x1*data.x2
+    if k>=6:
+        result['x1-x2'] = abs(data.x1-data.x2)
+    if k>=7:
+        result['x1+x2'] = abs(data.x1+data.x2)
+    return result
 
 # <codecell>
 
-class Coin:
-    from random import randint
-    lastFlip = 0;
-    last_nFlip = 0;
-    def flip(self):
-        self.lastFlip=randint(0,1)
-        return self.lastFlip
-    def flip_n_times(self,n):
-        res = np.zeros(n)
-        for i in range(n):
-            res[i]=randint(0,1)
-            
-        self.last_nFlip = res 
-        return res
+from sklearn.linear_model import LinearRegression as LR
+
+for k in range(3,8):
+    clf = LR()
+    traindata = transform(indata,k).ix[:24,:]
+    ytrain = indata.y.ix[:24]
+    #valdata = transform(indata,k).ix[10:,:]
+    #yval = indata.y.ix[10:]
+    valdata = transform(outdata,k)
+    yval = outdata.y
+    clf.fit(traindata,ytrain)
+    error = float((np.sign(clf.predict(valdata))!=yval).sum())/len(yval)
+    print k, error
 
 # <codecell>
 
-coin = Coin()
-MinFreq= np.zeros(1000)
+#ro = pow(pow(3,0.5)+4,0.5)
+#ro = pow(pow(3,0.5)-1,0.5)
+ro = pow(9+4*pow(6,0.5),0.5)
+df= pd.DataFrame(columns=['x','y'])
+df=df.append({'x':-1,'y':0},ignore_index=True)
+df=df.append({'x':ro,'y':1},ignore_index=True)
+df=df.append({'x':1,'y':0},ignore_index=True)
 
-for j in range(1000):
-    flipResults = np.zeros((1000,10))
-    for i in range(1000):
-        flipResults[i,:]=coin.flip_n_times(10)
-    minFreq = min(sum(flipResults,axis=1))/10
-    MinFreq[j] = minFreq
+# <codecell>
 
-print MinFreq.mean()
+(pow(df.ix[[0,1],:].y.mean() - df.ix[2].y,2)+\
+pow(df.ix[[0,2],:].y.mean() - df.ix[1].y,2)+\
+pow(df.ix[[1,2],:].y.mean() - df.ix[0].y,2))/3
+
+# <codecell>
+
+(line(df.ix[[0,1],:],df.ix[2,:])+\
+line(df.ix[[0,2],:],df.ix[1,:])+\
+line(df.ix[[1,2],:],df.ix[0,:]))/3
+
+# <codecell>
+
+def line(d,v):
+    d= d.copy()
+    d.index = range(2)
+    y = lambda x: d.y[0]+(x-d.x[0])*(d.y[1]-d.y[0])/(d.x[1]-d.x[0])
+    #print v.x
+    return pow(y(v.x) - v.y,2)
+
+# <codecell>
+
+y = lambda x: df.y[1]+(x-df.x[1])*(df.y[2]-df.y[1])/(df.x[2]-df.x[1])
 
 # <codecell>
 

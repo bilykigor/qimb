@@ -16,7 +16,7 @@ reload(qimbs)
 
 #!Importing data
 df = pd.DataFrame()
-for i in range(5,7):
+for i in range(2,7):
     df = df.append(qimbs.import_month(i))
     print i
 print df.shape
