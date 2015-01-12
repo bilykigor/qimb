@@ -244,106 +244,19 @@ class Trip:
 
 # <codecell>
 
-trips = []
-
-driverID = 20
-driverDir = '../Kaggle/drivers/'+str(driverID)
-tripFiles = os.listdir(driverDir)
-
-for index, tripFile in enumerate(tripFiles):
-    df = pd.read_csv(driverDir+'/' + tripFile)
-    trip = Trip(1,driverDir+'/' + tripFile,df)
-    trips.append(trip)  
-
-    if index>2:
-        break
-
-# <codecell>
-
+import timeit
 driversFiles = map(int,os.listdir('../Kaggle/drivers/'))
-driversFiles.sort()
+driversFiles.sort(reverse=True)
 for driverID in driversFiles:
+    start = timeit.timeit()
     driverDir = '../Kaggle/drivers/'+str(driverID)
     tripFiles = os.listdir(driverDir)
     print driverID
     for index, tripFile in enumerate(tripFiles):
-        if (tripFile.split('.')[0][-1]!='f'):  
+        if (tripFile.split('.')[0][-1]!='f'):
             df = pd.read_csv(driverDir+'/' + str(tripFile))
             trip = Trip(1,driverDir+'/' + str(tripFile),df)
             trip.features.to_csv(driverDir+'/' + str(trip.ID) + 'f.csv')
-            #print driverID, trip.ID
-
-# <codecell>
-
-tripInd = 1
-start = 0
-end = trips[tripInd].n
-
-# <codecell>
-
-trips[tripInd].Radius(46)
-
-# <codecell>
-
-trips[tripInd].coordinates.ix[start:end,:]
-
-# <codecell>
-
-trips[tripInd].radius.ix[start:end,:]
-
-# <codecell>
-
-trips[tripInd].speed.ix[start:end,:]
-
-# <codecell>
-
-trips[tripInd].features.ix[start:end,:]
-
-# <codecell>
-
-ggplot(trips[tripInd].coordinates.ix[start:end,:],aes(x='x',y='y')) + geom_point(size=5)
-
-# <codecell>
-
-df = trips[tripInd].radius.copy()
-df['ind'] = range(df.shape[0])
-ggplot(df.ix[start:end,:],aes(x='ind',y='m')) + geom_point(size=10) 
-
-# <codecell>
-
-df = trips[tripInd].speed.copy()
-df['ind'] = range(df.shape[0])
-ggplot(df.ix[start:end,:],aes(x='ind',y='m_s')) + geom_point(size=10)
-
-# <codecell>
-
-df = trips[tripInd].features.copy()
-df['ind'] = range(df.shape[0])
-ggplot(df.ix[start:end,:],aes(x='ind',y='acc')) + geom_point(color='green',size=10)+\
-geom_point(df.ix[start:end,:],aes(x='ind',y='cacc'),color='red',size=10)
-
-# <codecell>
-
-ggplot(trips[tripInd].features[trips[tripInd].features.v>5].ix[start:end,:],aes(x='acc',y='cacc')) + geom_point(size=10)
-
-# <codecell>
-
-ggplot(trips[tripInd].features[trips[tripInd].features.v>5].ix[start:end,:],aes(x='acc')) + geom_histogram(binwidth = 0.1)
-
-# <codecell>
-
-(n,b,p) = matplotlib.pyplot.hist(list(trips[tripInd].features[trips[tripInd].features.v>5].acc),bins=100,range=[-5,5])
-
-# <codecell>
-
-df = pd.DataFrame(np.zeros((len(b)/2,2)))
-df.columns = ['x','y']
-df.x = b[len(b)/2+1:]
-_n = df.shape[0]
-for i in range(_n):
-    df.y[i] = (n[_n+i]-n[_n-i-1])/sum(n)
-ggplot(df,aes(x='x',y='y')) + geom_point(size=10) + geom_line() + geom_hline(yintercept=0) 
-
-# <codecell>
-
+                #print driverID, trip.ID
+    print timeit.timeit()-start
 

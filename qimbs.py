@@ -447,19 +447,19 @@ def create_features33(imbalanceMsg):
     min3 = imbalanceMsg[['ImbRef','ImbCBC','ImbFar']].apply(min,axis=1)
     max3 = imbalanceMsg[['ImbRef','ImbCBC','ImbFar']].apply(max,axis=1)
     
-    f = lambda x: int(x[3]>0)*max(x[0],x[1])+\
+    f1 = lambda x: int(x[3]>0)*max(x[0],x[1])+\
                   int(x[3]<0)*min(x[0],x[1])+\
                   int(x[3]==0)*(x[0]+x[1])*0.5
             
-    f = lambda x:2.0*x[0]*x[1]/(x[0]+x[1])
+    f2 = lambda x:2.0*x[0]*x[1]/(x[0]+x[1])
     
-    f = lambda x: int(x[3]>0)*(0.85*min(x[0],x[1])+0.15*max(x[0],x[1]))+\
+    f3 = lambda x: int(x[3]>0)*(0.85*min(x[0],x[1])+0.15*max(x[0],x[1]))+\
                   int(x[3]<0)*(0.15*min(x[0],x[1])+0.85*max(x[0],x[1]))+\
                   int(x[3]==0)*(x[0]+x[1])*0.5
             
-    f = lambda x:  (x[0] + x[1] +  0.5*(x[4] + x[5]))/3.0
+    f4 = lambda x:  (x[0] + x[1] +  0.5*(x[4] + x[5]))/3.0
     
-    f = lambda x:  int(x[3]>0)*\
+    f5 = lambda x:  int(x[3]>0)*\
                    (
                    (min(x[0],x[1])> x[4])*(x[0]+x[1])*0.5+\
                    (min(x[0],x[1])<=x[4])*(0.85*min(x[0],x[1])+0.15*max(x[0],x[1])))+\
@@ -469,7 +469,7 @@ def create_features33(imbalanceMsg):
                    int(x[3]==0)*(x[0]+x[1])*0.5
     
     imbalanceMsg['Mid_P'] = 0.5*( imbalanceMsg.Ask_P +  imbalanceMsg.Bid_P)
-    ref = imbalanceMsg[['ImbRef','ImbCBC','ImbFar','ImbShares','Mid_P']].apply(f,axis=1)
+    ref = imbalanceMsg[['ImbRef','ImbCBC','ImbFar','ImbShares','Mid_P']].apply(f3,axis=1)
     #ref = imbalanceMsg.ImbRef
     ask = imbalanceMsg.Ask_P
     askS = imbalanceMsg.Ask_S
@@ -559,7 +559,11 @@ def create_features33(imbalanceMsg):
     
     fdf['a7'] = fdf['D555']*fdf['D555']
     
-    fdf['p'] = numpy.floor(fdf['Mid_P']/50)
+    fdf['priceRange'] = numpy.floor(fdf['Mid_P']/10)
+    
+    fdf['imbInd'] = imbalanceMsg.ImbInd
+    fdf.imbInd[(fdf['imbInd']!=0) & (fdf['imbInd']!=23)]=1
+    fdf.imbInd[fdf['imbInd']==23]=2
     
     #fdf = fdf[max3-min3<0.5*ref]
         
@@ -906,12 +910,14 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     from sklearn.ensemble import GradientBoostingRegressor as GBR
     from sklearn.ensemble import RandomForestClassifier as RF
     import numpy
+    import math
     
     labels =  numpy.sort(list(set(y)))
     test_cm = np.zeros((len(labels),len(labels)))
     train_cm = np.zeros((len(labels),len(labels)))
     
-    CLF_BEST = clf_class()
+    if type(clf_class)!=str: 
+        CLF_BEST = clf_class()
     TEST_F_Score = 0
     
     for i in range(n_folds): 
@@ -930,6 +936,21 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
         Xtest.index = range(Xtest.shape[0])
         ytrain.index = range(ytrain.shape[0])
         ytest.index = range(ytest.shape[0])
+        
+        if (len((pd.isnull(Xtrain)).all(1).nonzero()[0])>0):
+            nonanind = (~pd.isnull(Xtrain)).all(1).nonzero()[0]
+            ytrain = ytrain[nonanind]
+            Xtrain = Xtrain.ix[nonanind,:]
+            Xtrain.index = range(Xtrain.shape[0])
+            ytrain.index = range(ytrain.shape[0])
+            
+        if (len((pd.isnull(Xtest)).all(1).nonzero()[0])>0):
+            nonanind = (~pd.isnull(Xtest)).all(1).nonzero()[0]
+            ytest = ytest[nonanind]
+            Xtest = Xtest.ix[nonanind,:]
+            Xtest.index = range(Xtest.shape[0])
+            ytest.index = range(ytest.shape[0])           
+               
         #========================================        
             
         if clf_class=='NN':    
@@ -1243,7 +1264,7 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     fig1 = plt.figure(figsize=(15, 5))
     plt.clf()
     ax1 = fig1.add_subplot(1,3,1)
-    trainError, testError, cm, clf, fscore = run_cv_proba(input,target,clf_class,30,1,dates,datesDF,**kwargs)
+    trainError, testError, cm, clf, fscore = run_cv_proba(input,target,clf_class,30,5,dates,datesDF,**kwargs)
     draw_confusion_matrix(cm,  numpy.sort(list(set(target))), fig1, ax1)
     ERRORS.loc[ERRORS.shape[0]] =[str(clf_class).split('.')[-1].strip('>'),trainError,testError]
     pr = Precision_Recall(cm,numpy.sort(list(set(target))))
