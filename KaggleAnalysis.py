@@ -28,19 +28,19 @@ class Trip:
     
     n=0
     
-    def __init__(self,dID,fName,df):
+    def __init__(self,dID,tID,df,window=1):
+        self.window=window
         self.driverID = dID
-        self.fullPath = fName
         self.coordinates = df
         self.n = df.shape[0]
-        self.ID = int(fName.split('/')[-1].split('.')[0])
+        self.ID = tID
         #self.DropPrecision()
         #self.RemoveDirectionOutliers()
-        self.getRadius()
+        #self.getRadius()
         #self.RemoveRadiusOutliers()
-        self.getSpeed()
+        #self.getSpeed()
         #self.RemoveSpeedOutliers()
-        self.getFeatures()
+        #self.getFeatures()
         
     def getTripLen(self):
         self.n = self.coordinates.shape[0]
@@ -51,13 +51,19 @@ class Trip:
         self.tripLen = l
         
     def getSpeed(self):
-        self.n = self.coordinates.shape[0]
+        x=np.asarray(self.coordinates.x)
+        y=np.asarray(self.coordinates.y)
+        self.speed = pd.DataFrame(\
+        sqrt((x[self.window:]-x[:-self.window])**2 + (y[self.window:]-y[:-self.window])**2)/self.window)
+        self.speed.columns = ['m_s']
+        
+        '''self.n = self.coordinates.shape[0]
         
         self.speed = pd.DataFrame(np.zeros((self.n-1,1)))
         self.speed.columns = ['m_s']
         
         for i in range(self.n-1):
-            self.speed.m_s[i] = self.DistanceInd(i,1)
+            self.speed.m_s[i] = self.DistanceInd(i,1)'''
     
     def getFeatures(self):
         self.n = self.coordinates.shape[0]
@@ -253,11 +259,88 @@ tripFiles = os.listdir(driverDir)
 for index, tripFile in enumerate(tripFiles):
     if (tripFile.split('.')[0][-1]!='f'):
         df = pd.read_csv(driverDir+'/' + tripFile)
-        trip = Trip(1,driverDir+'/' + tripFile,df)
+        trip = Trip(1,int(tripFile.split('.')[0]),df)
         trips.append(trip)  
 
         if index>2:
             break
+
+# <codecell>
+
+def speedDistribution(trip,window=1):
+    x=np.asarray(trip.x)
+    y=np.asarray(trip.y)
+    vitesse = sqrt((x[window:]-x[:-window])**2 + (y[window:]-y[:-window])**2)/window
+    return percentile(vitesse,[x*5 for x in range(1,10)])
+
+# <codecell>
+
+from sklearn.linear_model import LogisticRegression as LR
+
+drivers = driversFiles = map(int,os.listdir('../Kaggle/drivers/'))
+drivers.sort(reverse=False)
+randomDrivers = drivers
+drivers_sampleSize=5
+trips_sampleSize=200
+
+# <codecell>
+
+main_df = pd.DataFrame(columns=['driver','trip','proba'])
+for cur_driver in drivers:
+    #print cur_driver
+    i=0
+    
+    np.random.shuffle(randomDrivers)
+    X = pd.DataFrame(np.zeros((1,9)))
+    y = pd.DataFrame(np.zeros((1,1)))
+    
+    driverDir = '../Kaggle/drivers/'+str(cur_driver)
+    tripFiles = range(1,201)
+    np.random.shuffle(tripFiles)
+    
+    pred_tripID = tripFiles[:trips_sampleSize]
+    for tripID in pred_tripID:                       
+        trip = Trip(cur_driver,tripID,pd.read_csv(driverDir+'/' + str(tripID) + '.csv'))
+        X.loc[i] = speedDistribution(trip.coordinates)
+        y.loc[i] = 1
+        i+=1
+            
+    for rand_driver in randomDrivers[:drivers_sampleSize]:
+        if rand_driver==cur_driver:
+            continue
+        
+        driverDir = '../Kaggle/drivers/'+str(rand_driver)
+        tripFiles = range(1,201)
+        np.random.shuffle(tripFiles)
+        
+        for tripID in tripFiles[:trips_sampleSize]:                       
+            trip = Trip(rand_driver,tripID,pd.read_csv(driverDir+'/' + str(tripID) + '.csv'))               
+            X.loc[i] = speedDistribution(trip.coordinates)
+            y.loc[i] = 0
+            i+=1
+            
+    clf = LR(class_weight='auto',C=0.1)
+    clf.fit(X,asarray(y[0]))
+    
+    cur_driver_df = pd.DataFrame(np.zeros((len(pred_tripID),3)),columns=['driver','trip','proba'])
+    cur_driver_df.driver = cur_driver
+    cur_driver_df.trip = pred_tripID
+    cur_driver_df.proba = clf.predict_proba(X.loc[:len(pred_tripID)-1])[:,1]#clf.predict(X.loc[:len(pred_tripID)-1])
+    main_df=main_df.append(cur_driver_df)
+
+# <codecell>
+
+for driver in randomDrivers[:sampleSize]:
+    driverDir = '../Kaggle/drivers/'+str(driver)
+    tripFiles = os.listdir(driverDir)
+    for index, tripFile in enumerate(tripFiles):                       
+        if (tripFile.split('.')[0][-1]!='f'):
+            df = pd.read_csv(driverDir+'/' + tripFile)
+            trip = Trip(driver,driverDir+'/' + tripFile,df)
+            features = speedDistribution(trip.coordinates)
+            features.extend([trip.driverID])
+            features_df.loc[index] = features
+    break
 
 # <codecell>
 

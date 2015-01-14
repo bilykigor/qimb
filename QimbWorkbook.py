@@ -726,16 +726,6 @@ hiddenLayer.dim
 
 # <codecell>
 
-
-
-outLayer
-
-
-
-
-
-# <codecell>
-
 def run_reg(X,y,clf_class,n_folds,test_size,dates,datesDF):
     from sklearn.ensemble import GradientBoostingRegressor as GBR
     from sklearn.ensemble import RandomForestRegressor as RFR

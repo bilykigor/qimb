@@ -4,15 +4,23 @@
 # <codecell>
 
 import qimbs 
+import mmll
 import numpy as np
 import pandas as pd
 from ggplot import *
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression as LR
+from sklearn.ensemble import GradientBoostingClassifier as GBC
+from sklearn.ensemble import GradientBoostingRegressor as GBR
 from sklearn.ensemble import RandomForestClassifier as RF
+
+from EnsembleClassifier import EnsembleClassifier
 
 # <codecell>
 
 reload(qimbs)
+reload(mmll)
 
 # <codecell>
 
@@ -88,13 +96,13 @@ ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 ret = 0.2
 
-ym_pos = fdf.OPC_P.copy()
+ym_pos = fdf.imbInd.copy()
 ym_pos[:] = 0
 ym_pos[fdf.OPC_P-fdf.Ask_P>ret] = 1
 ym_pos = ym_pos[fdf.a14>0]
 ym_pos.index = range(ym_pos.shape[0])
 
-ym_neg = fdf.OPC_P.copy()
+ym_neg = fdf.imbInd.copy()
 ym_neg[:] = 0
 ym_neg[fdf.OPC_P-fdf.Bid_P<-ret] = 1
 ym_neg = ym_neg[fdf.a14<0]
@@ -104,13 +112,13 @@ ym_neg.index = range(ym_neg.shape[0])
 
 ret = 0.2/100
 
-yr_pos = fdf.OPC_P.copy()
-yr_pos[:] = 0.0
+yr_pos = fdf.imbInd.copy()
+yr_pos[:] = 0
 yr_pos[fdf.OPC_P/fdf.Ask_P-1.0>ret]=1
 yr_pos = yr_pos[fdf.a14>0]
 yr_pos.index = range(yr_pos.shape[0])
 
-yr_neg = fdf.OPC_P.copy()
+yr_neg = fdf.imbInd.copy()
 yr_neg[:] = 0
 yr_neg[fdf.OPC_P/fdf.Bid_P-1<-ret]=1
 yr_neg = yr_neg[fdf.a14<0]
@@ -126,46 +134,47 @@ X_pos.head()
 
 # <codecell>
 
-qimbs.OneModelResults('NN', X_pos,y_pos,ERRORS,dates,datesDF_pos)
+eclf_pos = EnsembleClassifier(
+clfs=[
+RF(min_samples_split = int(len(ym_pos)*0.03),criterion='entropy',n_jobs=4)
+#,GBC(min_samples_split = len(ym_pos)*0.03,init='zero')
+#,LR(class_weight='auto',C=0.1)
+])
 
-# <codecell>
-
-qimbs.OneModelResults('NN', X_neg,y_neg,ERRORS,dates,datesDF_neg)
-
-# <codecell>
-
-qimbs.OneModelResults('COMB', X_pos,ym_pos,ERRORS,dates,datesDF_pos)
-
-# <codecell>
-
-qimbs.OneModelResults('COMB', X_neg,ym_neg,ERRORS,dates,datesDF_neg)
-
-# <codecell>
-
-reload(qimbs)
-qimbs.OneModelResults(RF, X_pos,ym_pos,ERRORS,dates,datesDF_pos)
+eclf_neg = EnsembleClassifier(
+clfs=[
+RF(min_samples_split = int(len(ym_neg)*0.03),criterion='entropy',n_jobs=4)
+#,GBC(min_samples_split = len(ym_neg)*0.03,init='zero')
+#,LR(class_weight='auto',C=0.1)
+])
 
 # <codecell>
 
 reload(qimbs)
-qimbs.OneModelResults(RF, X_neg,ym_neg,ERRORS,dates,datesDF_neg)
+reload(mmll)
 
 # <codecell>
 
-from sklearn.ensemble import GradientBoostingClassifier as GBC
-qimbs.OneModelResults(GBC, X_pos,yr_pos,ERRORS,dates,datesDF_pos)
+cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=30,labels = fdf[fdf.a14>0].Date,verbose = False)
 
 # <codecell>
 
-qimbs.OneModelResults(GBC, X_neg,yr_neg,ERRORS,dates,datesDF_neg)
+cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=30,labels = fdf[fdf.a14<0].Date,verbose = False)
 
 # <codecell>
 
-qimbs.OneModelResults('COMB', X_pos,ym_pos,ERRORS,dates,datesDF_pos)
+t=clf.clfs[0].estimators_[0].tree_
+print t.n_classes[0]
+print t.n_features
+print t.capacity
 
 # <codecell>
 
-qimbs.OneModelResults('COMB', X_neg,ym_neg,ERRORS,dates,datesDF_neg)
+clf.clfs[0].classes_
+
+# <codecell>
+
+c.copy()
 
 # <codecell>
 

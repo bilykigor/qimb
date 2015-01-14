@@ -3,6 +3,13 @@
 
 # <codecell>
 
+'''
+Good fast Implementation of KMeans
+
+'''
+
+# <codecell>
+
 from __future__ import division
 from scipy.sparse import issparse  
 

@@ -4,8 +4,28 @@
 # <codecell>
 
 import os
+
+import numpy
 import pandas as  pd
+import math
+
 from ggplot import *
+
+import qimbs
+import mmll
+from EnsembleClassifier import EnsembleClassifier
+from EnsembleClassifier import LabeledEstimator
+
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression as LR
+from sklearn.ensemble import GradientBoostingClassifier as GBC
+from sklearn.ensemble import GradientBoostingRegressor as GBR
+from sklearn.ensemble import RandomForestClassifier as RF
+from sklearn.metrics import confusion_matrix
+
+# <codecell>
+
+reload(mmll)
 
 # <codecell>
 
@@ -90,147 +110,63 @@ OOsent['Date']=OOsent[0]
 
 X = OOsent.ix[:,2:-3]
 y = OOsent.ix[:,-2]
+float(sum(y))/len(y)
 
 # <codecell>
 
-import pandas
-import numpy
-from sklearn.metrics import confusion_matrix
-from sklearn.cross_validation import train_test_split
-from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression as LR
-from sklearn.ensemble import GradientBoostingClassifier as GBC
-from sklearn.ensemble import GradientBoostingRegressor as GBR
-from sklearn.ensemble import RandomForestClassifier as RF
-import numpy
-import math
-import qimbs
+reload(qimbs)
+reload(mmll)
 
 # <codecell>
 
-#Train classifier
-def RunModel(clf_class,X,y,test_size,n_folds,dates,datesDF):
-
-    r = range(len(dates))
-
-    labels =  numpy.sort(list(set(y)))
-    test_cm = np.zeros((len(labels),len(labels)))
-    train_cm = np.zeros((len(labels),len(labels)))
-    
-    if type(clf_class)!=str: 
-        CLF_BEST = clf_class()
-    TEST_F_Score = 0
-
-    for i in range(n_folds): 
-        np.random.shuffle(r)
-        test_days = r[:test_size] 
-        train_days = r[test_size:] 
-
-        Xtrain = X.ix[datesDF.ix[train_days],:]
-        Xtest = X.ix[datesDF.ix[test_days],:]
-        ytrain = y.ix[datesDF.ix[train_days]]
-        ytest = y.ix[datesDF.ix[test_days]]        
-
-        Xtrain.index = range(Xtrain.shape[0])
-        Xtest.index = range(Xtest.shape[0])
-        ytrain.index = range(ytrain.shape[0])
-        ytest.index = range(ytest.shape[0])
-        
-        if (len((pd.isnull(Xtrain)).all(1).nonzero()[0])>0):
-            nonanind = (~pd.isnull(Xtrain)).all(1).nonzero()[0]
-            ytrain = ytrain[nonanind]
-            Xtrain = Xtrain.ix[nonanind,:]
-            Xtrain.index = range(Xtrain.shape[0])
-            ytrain.index = range(ytrain.shape[0])
-            
-        if (len((pd.isnull(Xtest)).all(1).nonzero()[0])>0):
-            nonanind = (~pd.isnull(Xtest)).all(1).nonzero()[0]
-            ytest = ytest[nonanind]
-            Xtest = Xtest.ix[nonanind,:]
-            Xtest.index = range(Xtest.shape[0])
-            ytest.index = range(ytest.shape[0]) 
-
-        if (type(clf_class()) ==  type(LR())) :
-            clf = clf_class(class_weight='auto',C=0.1)
-        if (type(clf_class()) ==  type(SVC())):
-            clf = clf_class(class_weight='auto',probability=True)
-        if (type(clf_class()) ==  type(RF())):
-            clf = clf_class(n_jobs=4,min_samples_split = Xtrain.shape[0]*0.05, \
-                                       criterion = 'entropy', n_estimators = 10)
-        if (type(clf_class()) ==  type(GBC())):
-            clf = clf_class(min_samples_split = Xtrain.shape[0]*0.05,init='zero')
-        if (type(clf_class()) ==  type(GBR())):
-            clf = clf_class(init='zero')
-
-        clf.fit(Xtrain,ytrain)
-
-
-        if (type(clf_class()) !=  type(GBR())):
-            probaTest = clf.predict_proba(Xtest).astype(float)
-            probaTrain = clf.predict_proba(Xtrain).astype(float)
-
-            ypred = clf.classes_[numpy.argmax(probaTest,axis=1)]
-            ypredTrain = clf.classes_[numpy.argmax(probaTrain,axis=1)]  
-
-            test_cm_tmp = confusion_matrix(ytest,ypred,labels).astype(float)
-            test_cm += test_cm_tmp/n_folds
-            train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
-
-        else:
-            probaTest = clf.predict(Xtest).astype(float)
-            probaTrain = clf.predict(Xtrain).astype(float)
-
-            ypred = probaTest>0.5
-            ypredTrain = probaTrain>0.5  
-
-            test_cm_tmp = confusion_matrix(ytest,ypred,labels).astype(float)
-            test_cm += test_cm_tmp/n_folds
-            train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds     
-            
-        pr =  qimbs.Precision_Recall(test_cm_tmp, labels)
-        if (pr[2]>TEST_F_Score):
-            TEST_F_Score =  pr[2]
-            CLF_BEST = clf  
-    
-    #print TEST_ERRORS
-    print "max F_Score ",TEST_F_Score
-
-    test_pr = qimbs.Precision_Recall(test_cm, labels)
-    train_pr = qimbs.Precision_Recall(train_cm, labels)
-
-    return test_cm,CLF_BEST
+reload(EnsembleClassifier)
 
 # <codecell>
 
-cm,clf = RunModel(RF,X,y,int(0.15*len(dates)),20,dates,qimbs.dates_tmp_df(OOsent))
-#cm = RunModel(RF,X[fi['Feature'][:10]],y,0.1,10)
-pr = qimbs.Precision_Recall(cm, labels)
-fig1 = plt.figure(figsize=(15, 5))
-plt.clf()
-ax1 = fig1.add_subplot(1,3,1)
-
-qimbs.draw_confusion_matrix(cm,  numpy.sort(list(set(y))), fig1, ax1)
-print 'Precision - %s, Recall - %s, F_Score - %s' % (pr[0],pr[1],pr[2])
-
-clf.fit(X,y)
-proba = clf.predict_proba(X).astype(float)
-ypred = clf.classes_[numpy.argmax(proba,axis=1)]
-cm_new = confusion_matrix(y,ypred,labels).astype(float)
+lclf=EnsembleClassifier.LabeledEstimator(RF)
+labels = np.ones(len(y))
+labels[:300]=0
+lclf.fit(X,y,labels = labels)
+for value in lclf.clfs.itervalues():
+    print value
 
 # <codecell>
+
+lclf.predict_proba(X)
+
+# <codecell>
+
+eclf = EnsembleClassifier(
+clfs=[
+RF( min_samples_split = len(y)*0.03,criterion='entropy',n_jobs=4)
+#GBC(min_samples_split = len(y)*0.03,init='zero'),
+#LR(class_weight='auto',C=0.1)
+])
+
+# <codecell>
+
+cm,clf = mmll.clf_cross_validation(eclf,X,y,test_size=20,n_folds=10,labels = OOsent.Date)
+
+labels = numpy.sort(list(set(y)))
 
 fig1 = plt.figure(figsize=(15, 5))
-plt.clf()
 ax1 = fig1.add_subplot(1,3,1)
-qimbs.draw_confusion_matrix(cm_new,  numpy.sort(list(set(y))), fig1, ax1)
-pr = qimbs.Precision_Recall(cm_new, labels)
-print 'Precision - %s, Recall - %s, F_Score - %s' % (pr[0],pr[1],pr[2])
+mmll.draw_confusion_matrix(cm, labels , fig1, ax1)
+
+#clf.fit(X,y)
+#proba = clf.predict_proba(X).astype(float)
+#ypred = clf.classes_[numpy.argmax(proba,axis=1)]
+#cm_new = confusion_matrix(y,ypred,labels).astype(float)
+
+# <codecell>
+
+cm
 
 # <codecell>
 
 fi = pd.DataFrame()
 fi['Feature'] = list(X.columns)
-fi['Impotrance'] = clf.feature_importances_
+fi['Impotrance'] = clf.clfs[0].feature_importances_
 fi=fi.sort(columns=['Impotrance'],ascending=False)
 fi['Index'] = range(X.shape[1])
 fi.index = fi['Index']

@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 # <nbformat>3.0</nbformat>
 
-# <codecell>
+# <rawcell>
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-import datetime
-from ggplot import *
+# import pandas as pd
+# import matplotlib.pyplot as plt
+# import numpy as np
+# import datetime
+# from ggplot import *
+# from itertools import combinations
 
 # <codecell>
 
@@ -573,131 +574,6 @@ def create_features33(imbalanceMsg):
 
 # <codecell>
 
-def create_features4(imbalanceMsg):  
-    #Creating features for algorithm
-    import numpy
-    fdf = pd.DataFrame()
-    Features = dict()
-
-    fdf['Symbol'] = imbalanceMsg.Symbol
-    fdf['Date'] = imbalanceMsg.Date
-
-    fdf['Move'] = imbalanceMsg.Move
-    Features['Move'] = 'Move'
-    
-    fdf['CMove'] = imbalanceMsg.Move
-    fdf.CMove = 0
-    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.1] = 3
-    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.02) & 
-              (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.1)] = 2
-    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0)
-              & (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.02)] = 1
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.1)] = -3
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.02)
-              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.1)] = -2
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0)
-              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.02)] = -1
-    Features['CMove'] = 'CMove'
-    
-    
-    
-    fdf['0'] = np.sign(imbalanceMsg.ImbShares)
-    Features['0'] = 'Side'
-       
-    fdf['1'] = imbalanceMsg.Bid_P-(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
-    Features['1'] = 'Bid-Spread'
-    
-    fdf['2'] = imbalanceMsg.Bid_P
-    Features['2'] = 'Bid'
-       
-    fdf['3'] = imbalanceMsg.Ask_P
-    Features['3'] = 'Ask'
-    
-    fdf['4'] = imbalanceMsg.Ask_P + (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
-    Features['4'] = 'Ask+Spread'
-    
-    fdf['5'] = imbalanceMsg.ImbRef
-    Features['5'] = 'Ref'
-    
-    fdf['6'] = imbalanceMsg.ImbCBC
-    Features['6'] = 'Near'
-    
-    fdf['7'] = imbalanceMsg.ImbFar
-    Features['7'] = 'Far'
-    
-    fdf['8'] = imbalanceMsg.PrevCLC_P
-    Features['8'] = 'Close'
-    
-    fdf['n2'] = imbalanceMsg.nsdq_BP
-    Features['n2'] = 'nBid'
-       
-    fdf['n3'] = imbalanceMsg.nsdq_AP
-    Features['n3'] = 'nAsk'
-    
-    fdf['2_2'] = imbalanceMsg.Bid2
-    Features['2_2'] = 'Bid2'
-       
-    fdf['3_2'] = imbalanceMsg.Ask2
-    Features['3_2'] = 'Ask2'  
-    
-    fdf['9'] = imbalanceMsg.ImbRef-0.05
-    Features['9'] = 'Ref-1'
-    
-    fdf['10'] = imbalanceMsg.ImbRef+0.05
-    Features['10'] = 'Ref+1'
-    
-    fdf['11'] = imbalanceMsg.PrevCLC_P-0.05
-    Features['11'] = 'Close-1'
-    
-    fdf['12'] = imbalanceMsg.PrevCLC_P+0.05
-    Features['12'] = 'Close+1'
-    
-    fdf['13'] = imbalanceMsg.Bid_P-0.05
-    Features['13'] = 'Bid-1'
-    
-    fdf['14'] = imbalanceMsg.Bid_P+0.05
-    Features['14'] = 'Bid+1'
-    
-    fdf['15'] = imbalanceMsg.Ask_P-0.05
-    Features['15'] = 'Ask-1'
-    
-    fdf['16'] = imbalanceMsg.Ask_P+0.05
-    Features['16'] = 'Ask+1'
-    
-    fdf['17'] = imbalanceMsg.ImbRef+(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
-    Features['17'] = 'Ref+Spread'
-    
-    fdf['18'] = imbalanceMsg.ImbRef-(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
-    Features['18'] = 'Ref-Spread'
-    
-    fdf['19'] = imbalanceMsg.ImbRef-0.02
-    Features['19'] = 'Ref-1'
-    
-    fdf['20'] = imbalanceMsg.ImbRef+0.02
-    Features['20'] = 'Ref+1'
-    
-    fdf['21'] = imbalanceMsg.PrevCLC_P-0.02
-    Features['21'] = 'Close-1'
-    
-    fdf['22'] = imbalanceMsg.PrevCLC_P+0.02
-    Features['22'] = 'Close+1'
-    
-    fdf['23'] = imbalanceMsg.Bid_P-0.02
-    Features['23'] = 'Bid-1'
-    
-    fdf['24'] = imbalanceMsg.Bid_P+0.02
-    Features['24'] = 'Bid+1'
-    
-    fdf['25'] = imbalanceMsg.Ask_P-0.02
-    Features['25'] = 'Ask-1'
-    
-    fdf['26'] = imbalanceMsg.Ask_P+0.02
-    Features['26'] = 'Ask+1'
-    
-    return fdf, Features
-
-# <codecell>
-
 def getImbTime(nImb):
     startTime = '9:27:58'
     endTime = '9:28:03'
@@ -882,23 +758,6 @@ def get_imbelanceMSG3(df,nImb):
 
 # <codecell>
 
-def Precision_Recall(cm, labels):
-    m = cm.shape[0]
-    sums1 = cm.sum(axis=1);
-    sums2 = cm.sum(axis=0);
-    precision = 0
-    s1 = 0
-    s2 = 0
-    for i in range(m):
-        if labels[i] == 0: continue;
-        precision +=  cm[i,i]
-        s1 += sums1[i]
-        s2 += sums2[i]
-
-    return precision/s2, precision/s1, 2*(precision/s1 * precision/s2)/(precision/s2 + precision/s1)
-
-# <codecell>
-
 def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     import pandas
     import numpy
@@ -911,6 +770,8 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
     from sklearn.ensemble import RandomForestClassifier as RF
     import numpy
     import math
+    from mmll import draw_confusion_matrix
+    from mmll import Precision_Recall
     
     labels =  numpy.sort(list(set(y)))
     test_cm = np.zeros((len(labels),len(labels)))
@@ -1153,114 +1014,10 @@ def run_cv_proba(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
 
 # <codecell>
 
-def dates_tmp_df(fdf):
-    import numpy
-    
-    datesDF = pd.DataFrame()
-    datesDF['Date'] = fdf.Date
-    datesDF['newIndex'] = numpy.zeros((datesDF.shape[0],1))
-    datesDF.index = range(datesDF.shape[0])
-
-    dates = sorted(list(set(fdf.Date)))
-    for i in range(datesDF.shape[0]):
-        for j in range(len(dates)):
-            if (datesDF.Date[i]==dates[j]):            
-                datesDF.newIndex[i] = j
-            
-    datesDF.index = datesDF.newIndex 
-    datesDF.newIndex = range(datesDF.shape[0])
-    datesDF = datesDF['newIndex']
-    
-    return datesDF
-
-def run_cv2(X,y,clf_class,n_folds,test_size,dates,datesDF,**kwargs):
-    from sklearn.metrics import confusion_matrix
-    from sklearn.cross_validation import train_test_split
-    from sklearn import preprocessing
-    from sklearn.svm import SVC
-    from sklearn.linear_model import LogisticRegression as LR
-    from sklearn.ensemble import RandomForestRegressor as RFR
-    import numpy
-    
-    if (type(clf_class()) !=  type(RFR())):
-        labels =  numpy.sort(list(set(y)))
-    else:
-        labels =  numpy.sort(list(set(np.sign(y))))
-        
-    test_cm = np.zeros((len(labels),len(labels)))
-    train_cm = np.zeros((len(labels),len(labels)))
-    testError = 0
-    trainError = 0
-    
-    for i in range(n_folds):  
-        r = range(len(dates))
-        np.random.shuffle(r)
-        test_days = r[:test_size] 
-        train_days = r[test_size:] 
-               
-        Xtrain = X.ix[datesDF.ix[train_days],:]
-        Xtest = X.ix[datesDF.ix[test_days],:]
-        ytrain = y.ix[datesDF.ix[train_days]]
-        ytest = y.ix[datesDF.ix[test_days]]
-        
-        if clf_class!='B':
-            if not kwargs.has_key('n_ensembles'):
-                n_ensembles = 1
-                test_size_ensemble = 0
-            else:
-                n_ensembles = kwargs['n_ensembles']
-                test_size_ensemble = kwargs['test_size_ensemble']
-                
-            ypred = ytest.copy(); ypred[:] = 0
-            ypredTrain = ytrain.copy(); ypredTrain[:] = 0
-            for j in range(n_ensembles):  
-                Xtrain_sub, Xtest_sub, ytrain_sub, ytest_sub = train_test_split(Xtrain, ytrain, test_size=test_size_ensemble)
-
-                if (type(clf_class()) ==  type(LR())) | (type(clf_class()) ==  type(SVC())):
-                    clf = clf_class(class_weight='auto')
-                else:
-                    clf = clf_class(n_jobs=2,min_samples_split = Xtrain.shape[0]*0.05)
-                    
-                clf.fit(Xtrain_sub,ytrain_sub)
-
-                ypred += clf.predict(Xtest).astype(float)/n_ensembles
-                ypredTrain += clf.predict(Xtrain).astype(float)/n_ensembles
-
-            #Averaging of assemblies results
-            if (type(clf_class()) !=  type(RFR())):
-                ypred[ypred>0.5] = 1
-                ypred[ypred<-0.5] = -1
-                ypred[(ypred!=1) & (ypred!=-1)] = 0
-
-                ypredTrain[ypredTrain>0.5] = 1
-                ypredTrain[ypredTrain<-0.5] = -1
-                ypredTrain[(ypredTrain!=1) & (ypredTrain!=-1)] = 0
-        else:
-            ypred = ytest.copy(); ypred[:] = 0
-            ypredTrain = ytrain.copy(); ypredTrain[:] = 0
-            ypred[(Xtest.a14>0) & (Xtest.D5>=0)] = 1
-            ypred[(Xtest.a14<0) & (Xtest.D4>=0)] = -1
-            ypredTrain[(Xtrain.a14>0) & (Xtrain.D5>=0)] = 1
-            ypredTrain[(Xtrain.a14<0) & (Xtrain.D4>=0)] = -1
-        
-        if (clf_class=='B'):
-            test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
-            train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
-        else:
-            if (type(clf_class()) ==  type(RFR())):
-                plt.scatter(ytest,ypred)
-                test_cm += confusion_matrix(np.sign(ytest),np.sign(ypred),labels).astype(float)/n_folds
-                train_cm += confusion_matrix(np.sign(ytrain),np.sign(ypredTrain),labels).astype(float)/n_folds
-            else:
-                test_cm += confusion_matrix(ytest,ypred,labels).astype(float)/n_folds
-                train_cm += confusion_matrix(ytrain,ypredTrain,labels).astype(float)/n_folds
-        
-    test_pr = Precision_Recall(test_cm, labels)
-    train_pr = Precision_Recall(train_cm, labels)    
-    return 1-train_pr[2], 1-test_pr[2], test_cm
-
 def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     import numpy
+    from mmll import draw_confusion_matrix
+    from mmll import Precision_Recall
     fig1 = plt.figure(figsize=(15, 5))
     plt.clf()
     ax1 = fig1.add_subplot(1,3,1)
@@ -1297,6 +1054,30 @@ def OneModelResults(clf_class, input,target,ERRORS,dates,datesDF,**kwargs):
     ggtitle('Learning curves') + xlab("% of data sent to train") + ylab("Error")
     
     return g,cm2return
+
+# <codecell>
+
+def dates_tmp_df(fdf):
+    import numpy
+    
+    datesDF = pd.DataFrame()
+    datesDF['Date'] = fdf.Date
+    datesDF['newIndex'] = numpy.zeros((datesDF.shape[0],1))
+    datesDF.index = range(datesDF.shape[0])
+
+    dates = sorted(list(set(fdf.Date)))
+    for i in range(datesDF.shape[0]):
+        for j in range(len(dates)):
+            if (datesDF.Date[i]==dates[j]):            
+                datesDF.newIndex[i] = j
+            
+    datesDF.index = datesDF.newIndex 
+    datesDF.newIndex = range(datesDF.shape[0])
+    datesDF = datesDF['newIndex']
+    
+    return datesDF
+
+# <codecell>
 
 def Regression(clf_class, input,target,dates,datesDF,side):
     import numpy
@@ -1552,37 +1333,6 @@ def run_cvNN2(X,y,n_folds,threshold,test_size,**kwargs):
 
 # <codecell>
 
-def draw_confusion_matrix(conf_arr, labels, fig, ax):  
-    #print conf_arr
-    conf_arr=conf_arr.astype(float)
-    
-    sums = conf_arr.sum(axis=0)
-    #print sums
-    for i in range(len(labels)):
-        conf_arr[:,i] /= sums[i]
-    #print conf_arr
-    #fig = plt.figure()
-    #plt.clf()
-    #ax = fig.add_subplot(111)
-    #ax.set_aspect(1)
-    res = ax.imshow(np.array(conf_arr), cmap=plt.cm.jet, interpolation='nearest')
-
-    width = len(conf_arr)
-    height = len(conf_arr[0])
-
-    for x in xrange(width):
-        for y in xrange(height):
-            ax.annotate(str(conf_arr[x][y])[:4], xy=(y, x), 
-                        horizontalalignment='center',
-                        verticalalignment='center')
-
-    #cb = fig.colorbar(res)
-    plt.xticks(range(width), labels[:width])
-    plt.yticks(range(height), labels[:height])
-    #plt.show()
-
-# <codecell>
-
 def get_signals1(imbalanceMsg,X,y,clf_class,dates,datesDF,**kwargs):  
     import numpy
     from sklearn.cross_validation import train_test_split
@@ -1804,570 +1554,6 @@ def get_performance(Signals,df,days,add=0):
 
 # <codecell>
 
-def Tree2Txt(clf,t,fileName):
-    f = open(fileName, 'w+')
-    f.write(str(t.n_classes[0])+'\n');
-    f.write(str(t.n_features)+'\n');
-    f.write(str(t.capacity)+'\n');
-    from sklearn.ensemble import GradientBoostingRegressor as GBR
-    if (type(clf) !=  type(GBR())):
-        for i in range(t.capacity):
-            s= '%d;%.19f;' % (t.feature[i],t.threshold[i])
-            if t.n_classes[0]==1:
-                s +='%s;' % str(t.value[i][0][0])
-            else:
-                for j in range(t.n_classes[0]):
-                    Sum = sum(t.value[i][0])
-                    if Sum>0:
-                        s +='%s;' %  str(t.value[i][0][j]/Sum)
-                    else:
-                         s +='%s;' % '0'
-            f.write(s+'\n')
-    else:
-        for i in range(t.capacity):
-            s= '%d;%.19f;' % (t.feature[i],t.threshold[i])
-            s +='%s;' % str(t.value[i][0][0]*clf.learning_rate*clf.n_estimators)
-            f.write(s+'\n')
-    f.close()
-    
-def Tree2Sql(clf,t,RFID,ID, datatypes,con):
-    data = np.zeros((t.capacity+3,7))
-    data[:,0] = RFID
-    data[:,1] = ID
-    dataID = datatypes[datatypes.Name=='data'].ID
-    data[3:,2] = dataID
-    
-    data[0,2:] = [datatypes[datatypes.Name=='n_classes'].ID,t.n_classes[0],0,0,0]
-    data[1,2:] = [datatypes[datatypes.Name=='n_features'].ID,t.n_features,0,0,0]
-    data[2,2:] = [datatypes[datatypes.Name=='capacity'].ID,t.capacity,0,0,0]
-    
-    from sklearn.ensemble import GradientBoostingRegressor as GBR
-    if (type(clf) !=  type(GBR())):
-        for i in range(t.capacity):
-            data[i+3,3] = i
-            data[i+3,4] = t.feature[i]
-            data[i+3,5] = t.threshold[i]
-            if t.n_classes[0]==1:
-                data[i+3,6] = t.value[i][0][0]
-            else:
-                Sum = sum(t.value[i][0])
-
-                if Sum>0:
-                    data[i+3,6] = t.value[i][0][0]/Sum
-                else:
-                    data[i+3,6] = 0 
-
-                if (data[i+3,6]>1):
-                    print data[i+3,6]
-    else:
-        for i in range(t.capacity):
-            data[i+3,3] = i
-            data[i+3,4] = t.feature[i]
-            data[i+3,5] = t.threshold[i]   
-            data[i+3,6] = t.value[i][0][0]*clf.learning_rate*clf.n_estimators
-    
-    df = pd.DataFrame(data,columns=['RFID','TreeID','DataTypeID','Ind','Feature','Threshold','Probability'])
-    df.to_sql('RFdata',con,index=False,if_exists='append')  
-    con.commit()
-    #return df
-
-# <codecell>
-
-def TreeTest2Txt(clf,X,fileName):
-    f = open(fileName, 'w+')
-    from sklearn.ensemble import GradientBoostingRegressor as GBR
-    from sklearn.ensemble import GradientBoostingClassifier as GBC
-    if (type(clf) ==  type(GBR())):
-        proba = clf.predict(X)
-        for i in range(X.shape[0]):
-            s= ''
-            for j in range(X.shape[1]):
-                s +='%s;' %  str(X.ix[i,j])
-            s +='%s;' %  str(proba[i])
-            f.write(s+'\n')
-        f.close()
-        return
-    
-    if (type(clf) ==  type(GBC())):
-        proba = clf.predict_proba(X)
-        for i in range(X.shape[0]):
-            s= ''
-            for j in range(X.shape[1]):
-                s +='%s;' %  str(X.ix[i,j])
-            for j in range(proba.shape[1]):
-                s +='%s;' %  str(proba[i,j])
-            f.write(s+'\n')
-        f.close()
-        return
-
-    #regression
-    if (clf.estimators_[0].tree_.n_classes[0]==1):
-        proba = clf.predict(X)
-        for i in range(X.shape[0]):
-            s= ''
-            for j in range(X.shape[1]):
-                s +='%s;' %  str(X.ix[i,j])
-            s +='%s;' %  str(proba[i])
-            f.write(s+'\n')
-        f.close()
-        return
-    
-    #classification
-    proba = clf.predict_proba(X)
-    for i in range(X.shape[0]):
-        s= ''
-        for j in range(X.shape[1]):
-            s +='%s;' %  str(X.ix[i,j])
-        for j in range(proba.shape[1]):
-            s +='%s;' %  str(proba[i,j])
-        f.write(s+'\n')
-    f.close()
-    return
-
-def TreeTest2Sql(clf,X,RFID,Type,Side,con):
-    if (Type==0):
-        proba = clf.predict_proba(X)
-        df = pd.DataFrame(proba[:,0], columns = ['Probability'])
-    else:
-        proba = clf.predict(X)
-        df = pd.DataFrame(proba, columns = ['Probability'])
-    df["RFID"] = RFID
-    df["Side"] = Side
-    df["Ind"] = range(X.shape[0])
-    df.to_sql('TestResults',con,index=False,if_exists='append')
-    con.commit()
-    
-def TestData2Sql(side,X,y,db):
-    import sqlite3 as lite
-    import sys
-        
-    con = None
-    
-    try:
-        con = lite.connect(db, timeout=10)
-        cur = con.cursor()    
-        cur.execute('SELECT SQLITE_VERSION()')
-        con.commit()
-        data = cur.fetchone()
-        print "SQLite version: %s" % data  
-        
-    except lite.Error, e:
-        print "Error %s:" % e.args[0]
-        con.close()
-        return     
-        
-    df = X.copy()
-    df.columns = ['F0','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','F13','F14','F15','F16','F17']
-    df["Side"] = side
-    df["YSide"] = 0
-    df.YSide[y>0] = 1
-    df.YSide[y<0] = -1
-    df["Ind"] = range(df.shape[0])
-    df["IndPos"] = -1
-    df["IndNeg"] = -1
-    df.IndPos[(df.Side==1)  & (df.YSide==-1)] = range(df.YSide[(df.Side==1)  & (df.YSide==-1)].shape[0])
-    df.IndNeg[(df.Side==-1) & (df.YSide==-1)] = range(df.YSide[(df.Side==-1) & (df.YSide==-1)].shape[0])
-    df.to_sql('TestFeatures',con,index=False,if_exists='append')
-    con.commit()
-
-# <codecell>
-
-def Forest2Txt(clf,X,Dir):
-    from sklearn.ensemble import GradientBoostingRegressor as GBR
-    from sklearn.ensemble import GradientBoostingClassifier as GBC
-    if ((type(clf) ==  type(GBR())) | (type(clf) ==  type(GBC()))):
-        for i in range(clf.n_estimators):
-            Tree2Txt(clf,clf.estimators_[i][0].tree_,Dir + '/%u.t' % i)
-    else:
-        for i in range(clf.n_estimators):
-            Tree2Txt(clf,clf.estimators_[i].tree_,Dir + '/%u.t' % i)
-    TreeTest2Txt(clf,X,Dir + '/test.u')
-    
-def Forest2Sql(clf,X,Type,Side,Advantage,Precision,db):
-    #Create connection
-    import sqlite3 as lite
-    import sys
-    import pandas as pd
-    import time
-        
-    con = None
-    
-    try:
-        con = lite.connect(db, timeout=10)
-        cur = con.cursor()    
-        cur.execute('SELECT SQLITE_VERSION()')
-        con.commit()
-        data = cur.fetchone()
-        print "SQLite version: %s" % data  
-        
-    except lite.Error, e:
-        print "Error %s:" % e.args[0]
-        con.close()
-        return     
-        
-    #Clear data for this RF
-    datatypes = pd.read_sql("SELECT * FROM RFdatatypes", con)
-    con.commit()
-
-    df = pd.read_sql("SELECT * FROM RFnames", con)
-    con.commit()
-      
-    if df.shape[0]>0:
-        RFID = df.ID.max()+1
-    else: 
-        RFID = 0
-        
-    df = pd.DataFrame(columns=['ID','Type','Side','NTrees','Advantage'])
-    
-    #regression
-    from sklearn.ensemble import GradientBoostingRegressor as GBR
-    from sklearn.ensemble import GradientBoostingClassifier as GBC
-    if (type(clf) ==  type(GBR())):
-        Type = 1
-        Advantage = 0
-    else:
-        if (clf.estimators_[0].tree_.n_classes[0]==1):
-            Type = 1
-            Advantage = 0
-        #classification
-        else:
-            Type = 0
-    
-    df = df.append({'ID':RFID,'Type':Type,'Side':Side,'NTrees':clf.n_estimators,'Advantage':Advantage,'Precision':Precision},ignore_index=True) 
-    df.to_sql('RFnames',con,index=False,if_exists='append')
-    con.commit()
-        
-    #Write RF data 
-    if ((type(clf) ==  type(GBR())) | (type(clf) ==  type(GBC()))):
-        for i in range(clf.n_estimators):
-            Tree2Sql(clf,clf.estimators_[i][0].tree_,RFID, i,datatypes,con)
-    else:
-        for i in range(clf.n_estimators):
-            Tree2Sql(clf,clf.estimators_[i].tree_,RFID, i, datatypes,con)
-    
-    TreeTest2Sql(clf,X,RFID,Type,Side,con)
-    
-    con.commit()
-    con.close()   
-
-# <codecell>
-
-def DropDB(db):
-    import sqlite3 as lite
-    import sys
-        
-    con = None
-    
-    try:
-        con = lite.connect(db, timeout=10)
-        cur = con.cursor()    
-        cur.execute('SELECT SQLITE_VERSION()')
-        con.commit()
-        data = cur.fetchone()
-        print "SQLite version: %s" % data  
-        
-    except lite.Error, e:
-        print "Error %s:" % e.args[0]
-        con.close()
-        return     
-    
-    cur = con.execute("DELETE FROM RFdata")
-    con.commit()
-    cur = con.execute("DELETE FROM RFnames")
-    con.commit()
-    cur = con.execute("DELETE FROM TestFeatures")
-    con.commit()
-    cur = con.execute("DELETE FROM TestResults")
-    con.commit()
-    con.close()
-
-# <codecell>
-
-def visualize_tree(clf):
-    from sklearn.ensemble import GradientBoostingRegressor as GBR
-    if (type(clf) !=  type(GBR())):
-        t=clf.estimators_[9].tree_
-    else:
-        t=clf.estimators_[9][0].tree_
-    from sklearn.externals.six import StringIO  
-    import pydot
-    from sklearn import tree
-    out = StringIO() 
-    tree.export_graphviz(t, out_file=out) 
-    #print out.getvalue()
-    graph = pydot.graph_from_dot_data(out.getvalue()) 
-    graph.write_pdf("t.pdf") 
-
-# <codecell>
-
-def create_featuresCumulative(df,nImb):
-    import pandas as pd
-    import numpy 
-    
-    stocks = set(df.Symbol)
-    dates = set(df.Date)
-    
-    #fdf = pd.DataFrame(columns=['Ask','AskD','Near','Far','Spread',
-    #'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
-    #'V8','V8n','V8nn', 'a1','a4','a5','a14','y'])
-    
-    fdf = numpy.zeros((len(stocks)*len(dates),20))
-    
-    n = 0
-    for date in dates:
-        print date
-        for stock in stocks:
-            
-            #if (n>10):
-            #   return fdf  
-            
-            #print stock
-            
-            stockData = df[(df.Symbol==stock) & (df.Date==date)]
-    
-            closeP = np.array(stockData[stockData.tSide=='YDAY'].tPrice)
-            if (len(closeP)==0):
-                continue;
-            else:
-                closeP = closeP[0]
-            
-            openP = np.array(stockData[stockData.Reason=='OPG'].tPrice)
-            if (len(openP)==0):
-                continue;
-            else:
-                openP = openP[0]
-            
-            if (closeP==0):  
-                continue;
-            if (openP==0):   
-                continue;
-
-            bid = np.array(stockData[stockData.Reason=='Imbalance'].Bid_P)
-            if (len(bid)!=24):
-                if (len(bid)!=0):
-                    print stock, len(bid)
-                continue;
-                                
-            ask = np.array(stockData[stockData.Reason=='Imbalance'].Ask_P)    
-            midP = 0.5*(bid + ask)
-            spread = ask - bid
-            bidS = np.array(stockData[stockData.Reason=='Imbalance'].Bid_S)
-            askS = np.array(stockData[stockData.Reason=='Imbalance'].Ask_S)  
-            spreadS = askS - bidS
-            midS = 0.5*(bidS + askS)
-
-            ref = np.array(stockData[stockData.Reason=='Imbalance'].ImbRef)  
-            near = np.array(stockData[stockData.Reason=='Imbalance'].ImbCBC)  
-            far = np.array(stockData[stockData.Reason=='Imbalance'].ImbFar) 
-            
-            imbShares = np.array(stockData[stockData.Reason=='Imbalance'].ImbShares)  
-            imbPaired = np.array(stockData[stockData.Reason=='Imbalance'].ImbPaired)  
-            #====================================================================
-            #Creating features
-            #====================================================================
-            
-            if (ref[nImb]<=0):                  continue;
-            if (near[nImb]<=0):                  continue;   
-            if (far[nImb]<=0):                  continue;  
-            if (ask[nImb]<=0):                  continue;    
-            if (bid[nImb]<=0):                  continue;    
-    
-            
-            tmpBid = bid[nImb]/ref[nImb]-1
-               
-            tmpAsk = ask[nImb]/ref[nImb]-1   
-
-            #fdf['BidD'] = bid-ref
-
-            tmpAskD = ask[nImb] - ref[nImb]   
-
-            tmpa1 = tmpBid*tmpAsk        
-
-            tmpNear = near[nImb]/ref[nImb]-1
-
-            tmpFar = far[nImb]/ref[nImb]-1
-
-            #fdf['PrevCLC'] = closeP/ref-1
-
-            tmpSpread = spread[nImb]/ref[nImb]
-
-            #fdf['D3'] = 100*(midP/closeP-1)
-
-            tmpD4 = 100*(bid[nImb]-ref[nImb])/closeP
-
-            tmpD5 = 100*(ref[nImb]-ask[nImb])/closeP
-
-            tmpD444 = (bid[nImb]-ref[nImb])/(1+spread[nImb])
-
-            tmpD555 = (ref[nImb]-ask[nImb])/(1+spread[nImb])
-
-            #fdf['D7'] = 100*(ref/closeP-1)
-
-            tmpD66 = 100*(ref[nImb]/midP[nImb]-1)
-
-            tmpV1 = numpy.sign(imbShares[nImb])*\
-            (askS[nImb] - bidS[nImb])/(100+np.abs(imbShares[nImb]))
-
-            tmpV1n = numpy.sign(imbShares[nImb])*spreadS[nImb]/(midS[nImb]+np.abs(imbShares[nImb]))
-
-            tmpV11 = numpy.sign(imbShares[nImb])*spreadS[nImb]/(100+imbPaired[nImb])
-
-            tmpV11n =numpy.sign(imbShares[nImb])*spreadS[nImb]/(midS[nImb]+imbPaired[nImb])
-
-            tmpV8 = imbShares[nImb]/(100+imbPaired[nImb])
-
-            tmpV8n = imbShares[nImb]/(midS[nImb]+imbPaired[nImb])
-
-            tmpV8nn = (imbShares[nImb]-spreadS[nImb])/(midS[nImb]+imbPaired[nImb])
-
-            #fdf['a3'] = fdf['D3']*fdf['D4']
-
-            tmpa4 = tmpD5*tmpD4
-
-            tmpa5 = tmpD444*tmpD555
-
-            #fdf['a6'] = fdf['D444']*fdf['D444']
-
-            #fdf['a7'] = fdf['D555']*fdf['D555']
-
-            tmpa14 = np.sign(imbShares[nImb])
-        
-            if (imbShares[nImb]>0):
-                tmpy = openP>ask[nImb]
-            else:
-                if (imbShares[nImb]<0):
-                    tmpy = openP<bid[nImb]
-                else:
-                    if (imbShares[nImb]==0):
-                        tmpy = 0
-        
-            fdf[n,:] = [tmpAsk,tmpAskD,tmpNear,tmpFar,tmpSpread,\
-                        tmpD5,tmpD555,tmpD66,tmpV1,tmpV1n,\
-                        tmpV11,tmpV11n,tmpV8,tmpV8n,tmpV8nn,\
-                        tmpa1,tmpa4,tmpa5,tmpa14,tmpy]
-            
-            n+=1
-        
-            # &
-            #(imbalanceMsg.Ask_P - imbalanceMsg.Bid_P < 
-            # 1.0 * (imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)*0.5) &
-            #(imbShares!=0)
-                
-            #X_pos=X_pos[['Ask','AskD','Near','Far','Spread',
-            # 'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
-            # 'V8','V8n','V8nn', 'a1','a4','a5']]
-            
-        return fdf[:n,:]   
-
-# <codecell>
-
-def create_featuresCumulative2(imbalanceMsg):  
-    #Creating features for algorithm
-    import numpy
-    fdf = pd.DataFrame()
-
-    midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
-    bid = imbalanceMsg.Bid_P
-    bidS = imbalanceMsg.Bid_S   
-    ref = imbalanceMsg.ImbRef
-    ask = imbalanceMsg.Ask_P
-    askS = imbalanceMsg.Ask_S
-    near = imbalanceMsg.ImbCBC
-    far = imbalanceMsg.ImbFar
-    closeP = imbalanceMsg.PrevCLC_P
-    
-    fdf['Symbol'] = imbalanceMsg.Symbol
-    fdf['Date'] = imbalanceMsg.Date
-
-    fdf['Move'] = imbalanceMsg.Move
-    
-    fdf['Pnl'] = imbalanceMsg.OPC_P/imbalanceMsg.ImbRef-1
-    
-    fdf['MoveR'] = (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares>0)+\
-     (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)*(imbalanceMsg.ImbShares<0)     
-    
-    fdf['CMoveR'] = imbalanceMsg.Move
-    fdf.CMoveR = 0
-    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P>imbalanceMsg.ImbRef)] = 2
-    fdf.CMoveR[(imbalanceMsg.ImbShares>0) & (imbalanceMsg.OPC_P<=imbalanceMsg.ImbRef)\
-              & (imbalanceMsg.OPC_P>=imbalanceMsg.Ask_P)] = 1
-    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P<imbalanceMsg.ImbRef)] = -2
-    fdf.CMoveR[(imbalanceMsg.ImbShares<0) & (imbalanceMsg.OPC_P>=imbalanceMsg.ImbRef)\
-              & (imbalanceMsg.OPC_P<=imbalanceMsg.Bid_P)] = -1   
-    
-    fdf['CMove'] = imbalanceMsg.Move
-    fdf.CMove = 0
-    fdf.CMove[imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0.1] = 2
-    fdf.CMove[(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P>0)
-              & (imbalanceMsg.OPC_P-imbalanceMsg.Ask_P<=0.1)] = 1
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0.1)] = -2
-    fdf.CMove[(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P>0)
-              & (imbalanceMsg.Bid_P-imbalanceMsg.OPC_P<=0.1)] = -1           
-        
-    fdf['Bid'] = bid/ref-1
-    
-    fdf['Ask'] = ask/ref-1   
-        
-    fdf['BidD'] = bid-ref
-    
-    fdf['AskD'] = ask - ref    
-    
-    fdf['a1'] = fdf['Bid']*fdf['Ask']        
-       
-    fdf['Near'] = near/ref-1
-    
-    fdf['Far'] = far/ref-1
-        
-    fdf['PrevCLC'] = closeP/ref-1
-    
-    fdf['Spread'] = (ask - bid)/ref
-
-    fdf['D3'] = 100*(midP/closeP-1)
-    
-    fdf['D4'] = 100*(bid-ref)/closeP
-
-    fdf['D5'] = 100*(ref-ask)/closeP
-    
-    fdf['D444'] = (bid-ref)/(1+ask - bid)
-
-    fdf['D555'] = (ref-ask)/(1+ask - bid)
-    
-    fdf['D7'] = 100*(ref/closeP-1)
-    
-    fdf['D66'] = 100*(ref/midP-1)
-
-    fdf['V1'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+np.abs(imbalanceMsg.ImbShares))
-    
-    fdf['V1n'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+np.abs(imbalanceMsg.ImbShares))
-    
-    fdf['V11'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+imbalanceMsg.ImbPaired)
-    
-    fdf['V11n'] =numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+imbalanceMsg.ImbPaired)
-    
-    fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
-    
-    fdf['V8n'] = imbalanceMsg.ImbShares/((askS + bidS)/2+imbalanceMsg.ImbPaired)
-    
-    fdf['V8nn'] = (imbalanceMsg.ImbShares-(askS - bidS))/((askS + bidS)/2+imbalanceMsg.ImbPaired)
-         
-    fdf['a3'] = fdf['D3']*fdf['D4']
-    
-    fdf['a4'] = fdf['D5']*fdf['D4']
-    
-    fdf['a5'] = fdf['D444']*fdf['D555']
-    
-    fdf['a6'] = fdf['D444']*fdf['D444']
-    
-    fdf['a7'] = fdf['D555']*fdf['D555']
-            
-    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
-    
-    fdf.index = range(fdf.shape[0])
-    
-    return fdf, Features
-
-# <codecell>
-
 def createFeatures34(fdf):
     import itertools
     initNumFeatures = fdf.shape[1]
@@ -2377,6 +1563,7 @@ def createFeatures34(fdf):
         #print i, diffsInd[i]
         d_fdf["d"+str(i)] = fdf.ix[:,diffsInd[i][0]]-fdf.ix[:,diffsInd[i][1]]
     return d_fdf
+
 def createFeatures35(X_pos):
     dfdf=createFeatures34(X_pos)
     df=pd.DataFrame()
@@ -2386,31 +1573,6 @@ def createFeatures35(X_pos):
             tmp.ix[tmp.ix[:]==0]=1
             df[str(j)+str(i)]=dfdf.ix[:,j]/X_pos.ix[:,i]
     return pd.concat([dfdf,df], axis=1)
-
-def createFeaturesBench(X_pos):
-    X_pos_Benchmark = pd.DataFrame()
-    X_pos_Benchmark['Ask'] = X_pos.Ask/X_pos.Ref-1
-    X_pos_Benchmark['Bid'] = X_pos.Bid/X_pos.Ref-1
-    X_pos_Benchmark['AskD'] = X_pos.Ask-X_pos.Ref
-    X_pos_Benchmark['Near'] = X_pos.Near/X_pos.Ref-1
-    X_pos_Benchmark['Far'] = X_pos.Far/X_pos.Ref-1
-    X_pos_Benchmark['Spread'] = X_pos.Ask-X_pos.Bid
-    X_pos_Benchmark['D4'] = 100*(X_pos.Bid-X_pos.Ref)/X_pos.CloseP
-    X_pos_Benchmark['D5'] = 100*(X_pos.Ref-X_pos.Ask)/X_pos.CloseP
-
-    X_pos_Benchmark['D444'] = (X_pos.Bid-X_pos.Ref)/(1+X_pos_Benchmark['Spread'])
-    X_pos_Benchmark['D555'] = (X_pos.Ref-X_pos.Ask)/(1+X_pos_Benchmark['Spread'])
-    X_pos_Benchmark['D66'] = 100*(X_pos.Ref/(0.5*(X_pos.Ask+X_pos.Bid))-1)
-    X_pos_Benchmark['a1'] = X_pos_Benchmark['Ask']*X_pos_Benchmark['Bid']
-    X_pos_Benchmark['a4'] = X_pos_Benchmark['D4']*X_pos_Benchmark['D5']
-    X_pos_Benchmark['a5'] = X_pos_Benchmark['D444']*X_pos_Benchmark['D555']
-    
-    X_pos_Benchmark['Spy1'] = (X_pos.BidSPY+X_pos.AskSPY)/X_pos.ClosePSPY
-    X_pos_Benchmark['Spy1'] /= (X_pos.Bid+X_pos.Ask)/X_pos.CloseP  
-    #X_pos_Benchmark['Spy1'] /= (X_pos.Bid-X_pos.Ask)
-    #X_pos_Benchmark['Spy1'] *= (X_pos.BidSPY-X_pos.AskSPY)
-
-    return X_pos_Benchmark
 
 def autocreateFeatures(X_pos,y_pos,ind):
     from sklearn.ensemble import RandomForestClassifier as RF
