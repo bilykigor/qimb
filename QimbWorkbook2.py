@@ -16,6 +16,7 @@ from sklearn.ensemble import GradientBoostingRegressor as GBR
 from sklearn.ensemble import RandomForestClassifier as RF
 
 from EnsembleClassifier import EnsembleClassifier
+from EnsembleClassifier import LabeledEstimator
 
 # <codecell>
 
@@ -46,6 +47,7 @@ sum(map(int,imbalanceMsg.ImbInd==0))
 reload(qimbs)
 fdf = qimbs.create_features33(imbalanceMsg)
 fdf.head()
+fdf.priceRange[fdf.priceRange>10]=11
 
 # <codecell>
 
@@ -53,8 +55,8 @@ fdf.head()
 
 # <codecell>
 
-fdf = fdf[fdf.priceRange>12]
-fdf.index = range(fdf.shape[0])
+#fdf = fdf[fdf.priceRange>12]
+#fdf.index = range(fdf.shape[0])
 
 # <codecell>
 
@@ -87,8 +89,6 @@ ypln_neg = ypln_neg[fdf.a14<0]
 ypln_neg.index = range(ypln_neg.shape[0])
 
 dates = sorted(list(set(fdf.Date)))
-datesDF_pos = qimbs.dates_tmp_df(fdf[fdf.a14>0])
-datesDF_neg = qimbs.dates_tmp_df(fdf[fdf.a14<0])
 
 ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
@@ -150,31 +150,24 @@ RF(min_samples_split = int(len(ym_neg)*0.03),criterion='entropy',n_jobs=4)
 
 # <codecell>
 
+labels_pos = fdf[fdf.a14>0].priceRange; labels_pos.index = range(labels_pos.shape[0])
+labels_neg = fdf[fdf.a14<0].priceRange; labels_neg.index = range(labels_neg.shape[0])
+lclf_pos=LabeledEstimator(RF(min_samples_split = int(len(ym_pos)*0.03),criterion='entropy',n_jobs=4))
+lclf_neg=LabeledEstimator(RF(min_samples_split = int(len(ym_neg)*0.03),criterion='entropy',n_jobs=4))
+
+# <codecell>
+
 reload(qimbs)
 reload(mmll)
 
 # <codecell>
 
-cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=30,labels = fdf[fdf.a14>0].Date,verbose = False)
+#cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=30,labels = fdf[fdf.a14>0].Date,verbose = False)
+cm,clf = mmll.lclf_cross_validation(lclf_pos,X_pos,yr_pos,labels_pos,test_size=5,n_folds=30,labels = fdf[fdf.a14>0].Date,verbose = False)
 
 # <codecell>
 
 cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=30,labels = fdf[fdf.a14<0].Date,verbose = False)
-
-# <codecell>
-
-t=clf.clfs[0].estimators_[0].tree_
-print t.n_classes[0]
-print t.n_features
-print t.capacity
-
-# <codecell>
-
-clf.clfs[0].classes_
-
-# <codecell>
-
-c.copy()
 
 # <codecell>
 

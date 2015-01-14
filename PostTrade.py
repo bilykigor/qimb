@@ -22,6 +22,7 @@ from sklearn.ensemble import GradientBoostingClassifier as GBC
 from sklearn.ensemble import GradientBoostingRegressor as GBR
 from sklearn.ensemble import RandomForestClassifier as RF
 from sklearn.metrics import confusion_matrix
+import EnsembleClassifier
 
 # <codecell>
 
@@ -116,27 +117,11 @@ float(sum(y))/len(y)
 
 reload(qimbs)
 reload(mmll)
-
-# <codecell>
-
 reload(EnsembleClassifier)
 
 # <codecell>
 
-lclf=EnsembleClassifier.LabeledEstimator(RF)
-labels = np.ones(len(y))
-labels[:300]=0
-lclf.fit(X,y,labels = labels)
-for value in lclf.clfs.itervalues():
-    print value
-
-# <codecell>
-
-lclf.predict_proba(X)
-
-# <codecell>
-
-eclf = EnsembleClassifier(
+eclf = EnsembleClassifier.EnsembleClassifier(
 clfs=[
 RF( min_samples_split = len(y)*0.03,criterion='entropy',n_jobs=4)
 #GBC(min_samples_split = len(y)*0.03,init='zero'),
@@ -146,12 +131,6 @@ RF( min_samples_split = len(y)*0.03,criterion='entropy',n_jobs=4)
 # <codecell>
 
 cm,clf = mmll.clf_cross_validation(eclf,X,y,test_size=20,n_folds=10,labels = OOsent.Date)
-
-labels = numpy.sort(list(set(y)))
-
-fig1 = plt.figure(figsize=(15, 5))
-ax1 = fig1.add_subplot(1,3,1)
-mmll.draw_confusion_matrix(cm, labels , fig1, ax1)
 
 #clf.fit(X,y)
 #proba = clf.predict_proba(X).astype(float)

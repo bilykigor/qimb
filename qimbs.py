@@ -185,261 +185,11 @@ def get_imbelanceMSG(df,nImb):
     imbalanceMsg.Move[imbalanceMsg.OPC_P<imbalanceMsg.Bid_P] = -1
     
     return imbalanceMsg   
-    
-def create_features(imbalanceMsg):  
-    #Creating features for algorithm
-    import numpy
-    fdf = pd.DataFrame()
-    Features = dict()
-
-    fdf['Symbol'] = imbalanceMsg.Symbol
-    fdf['Date'] = imbalanceMsg.Date
-
-    fdf['Move'] = imbalanceMsg.Move
-    Features['Move'] = '1:OpenCross>Ask(9.28); -1:OpenCross<Bid(9.28); 0:otherwise'
-    
-    fdf['Pnl'] = (imbalanceMsg.Move==-1)*(imbalanceMsg.OPC_P-imbalanceMsg.Ask_P)+\
-                 (imbalanceMsg.Move==1)*(imbalanceMsg.Bid_P-imbalanceMsg.OPC_P)
-
-    fdf['Spread'] = (imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)/imbalanceMsg.PrevCLC_P
-    Features['Spread'] = '(Ask-Bid) at 9.28'
-
-    fdf['D1'] = 100*(imbalanceMsg.PrevCLC_P/imbalanceMsg.PrevOPC_P-1)
-    Features['D1'] = 'Asset growth a day before'
-
-    fdf['D2'] = 100*(0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)/imbalanceMsg.PrevOPC_P-1)
-    Features['D2'] = 'Mid(9.28)/OPC(day before)-1'
-
-    fdf['D3'] = 100*(0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)/imbalanceMsg.PrevCLC_P-1)
-    Features['D3'] = 'Mid(9.28)/CloseCross(day before)-1'
-
-    
-    
-    fdf['D4'] = 100*(imbalanceMsg.Bid_P-imbalanceMsg.ImbRef)/imbalanceMsg.PrevCLC_P
-    Features['D4'] = '(Bid(9.28)-ImbRef(9.28))/CloseCross(day before)'
-
-    fdf['D5'] = 100*(imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/imbalanceMsg.PrevCLC_P
-    Features['D5'] = '(ImbRef(9.28)-Ask(9.28))/CloseCross(day before)'
-    
-    
-    fdf['D44'] = 100*(imbalanceMsg.Bid_P-imbalanceMsg.ImbRef)/imbalanceMsg.PrevOPC_P
-    Features['D44'] = '(Bid(9.28)-ImbRef(9.28))/OpenCross(day before)'
-
-    fdf['D55'] = 100*(imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/imbalanceMsg.PrevOPC_P
-    Features['D55'] = '(ImbRef(9.28)-Ask(9.28))/OpenCross(day before)'
-    
-    
-    fdf['D444'] = (imbalanceMsg.Bid_P-imbalanceMsg.ImbRef)/(1+imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
-    Features['D444'] = '(Bid(9.28)-ImbRef(9.28))/1+Spread'
-
-    fdf['D555'] = (imbalanceMsg.ImbRef-imbalanceMsg.Ask_P)/(1+imbalanceMsg.Ask_P - imbalanceMsg.Bid_P)
-    Features['D555'] = '(ImbRef(9.28)-Ask(9.28))/1+Spread'
-    
-
-    fdf['D6'] = 100*(imbalanceMsg.ImbRef/imbalanceMsg.PrevOPC_P-1)
-    Features['D6'] = 'ImbRef(9.28)/OpenCross(day before)-1'
-
-    fdf['D7'] = 100*(imbalanceMsg.ImbRef/imbalanceMsg.PrevCLC_P-1)
-    Features['D7'] = 'ImbRef(9.28)/CloseCross(day before)-1'
-    
-    fdf['D66'] = 100*(2*imbalanceMsg.ImbRef/(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)-1)
-    Features['D66'] = 'ImbRef(9.28)/Mid-1'
-    
-    
-
-    fdf['V1'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/(100*numpy.sign(imbalanceMsg.ImbShares)+imbalanceMsg.ImbShares)
-    Features['V1'] = '(Ask_S-Bid_S) at 9.28/Imbalance(9.28)'
-    
-    fdf['V11'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/(100+imbalanceMsg.ImbPaired)
-    Features['V11'] = '(Ask_S-Bid_S) at 9.28/PairedS(9.28)'
-
-    fdf['V2'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/imbalanceMsg.PrevOPC_S
-    Features['V2'] = '(Ask_S-Bid_S) at 9.28/OpenCross(day before)'
-
-    fdf['V3'] = (imbalanceMsg.Ask_S - imbalanceMsg.Bid_S)/imbalanceMsg.PrevCLC_S
-    Features['V3'] = '(Ask_S-Bid_S) at 9.28/CloseCross(day before)'
-
-    fdf['V4'] = imbalanceMsg.ImbShares/imbalanceMsg.PrevOPC_S
-    Features['V4'] = 'ImbalanceS(9.28)/OpenCrossS(day before)'
-
-    fdf['V5'] = imbalanceMsg.ImbShares/imbalanceMsg.PrevCLC_S
-    Features['V5'] = 'ImbalanceS(9.28)/CloseCrossS(day before)'
-
-    fdf['V6'] = imbalanceMsg.ImbPaired/imbalanceMsg.PrevOPC_S
-    Features['V6'] = 'PairedS(9.28)/OpenCrossS(day before)'
-
-    fdf['V7'] = imbalanceMsg.ImbPaired/imbalanceMsg.PrevCLC_S
-    Features['V7'] = 'PairedS(9.28)/CloseCrossS(day before)'
-    
-    fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
-    Features['V8'] = 'ImbalanceS(9.28)/PairedS(9.28)'
-    
-    fdf['V9'] = imbalanceMsg.PrevOPC_S/(100+imbalanceMsg.PrevCLC_S)
-    Features['V9'] = 'OpenCrossS(day before)/CloseCrossS(day before)'
-
-
-    fdf['a1'] = fdf['D1']*fdf['D2']
-    Features['a1'] = Features['D1'] + ' Multiply ' + Features['D2']
-    
-    fdf['a2'] = fdf['D2']*fdf['D3']
-    Features['a2'] = Features['D3'] + ' Multiply ' + Features['D2']
-    
-    fdf['a3'] = fdf['D3']*fdf['D4']
-    fdf['a4'] = fdf['D5']*fdf['D4']
-    Features['a4'] = Features['D5'] + ' Multiply ' + Features['D4']
-    
-    fdf['a5'] = fdf['D5']*fdf['D6']
-    fdf['a6'] = fdf['D1']*fdf['D6']
-    Features['a6'] = Features['D1'] + ' Multiply ' + Features['D6']
-    
-    fdf['a7'] = fdf['V1']*fdf['V2']
-    Features['a7'] = Features['V1'] + ' Multiply ' + Features['V2']
-    
-    fdf['a8'] = fdf['V2']*fdf['V3']
-    fdf['a9'] = fdf['V3']*fdf['V4']
-    Features['a9'] = Features['V3'] + ' Multiply ' + Features['V4']
-    
-    fdf['a10'] = fdf['V5']*fdf['V4']
-    fdf['a11'] = fdf['V5']*fdf['V6']
-    Features['a11'] = Features['V5'] + ' Multiply ' + Features['V6']
-    
-    fdf['a12'] = fdf['V7']*fdf['V6']
-    fdf['a13'] = fdf['V7']*fdf['V1']
-    Features['a13'] = Features['V1'] + ' Multiply ' + Features['V7']
-    
-    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
-    Features['a14'] = 'Sign of Imbalance'
-    
-    fdf.index = range(fdf.shape[0])
-    
-    return fdf, Features
-
-def create_features2(imbalanceMsg):  
-    #Creating features for algorithm
-    import numpy
-    fdf = pd.DataFrame()
-    Features = dict()
-
-    fdf['Symbol'] = imbalanceMsg.Symbol
-    fdf['Date'] = imbalanceMsg.Date
-
-    fdf['Move'] = imbalanceMsg.OPC_P/imbalanceMsg.ImbRef-1   
-    Features['Move'] = 'OpenCross/RefPrice(9.28)-1'
-    
-    fdf['Pnl'] = imbalanceMsg.OPC_P-imbalanceMsg.ImbRef
-    Features['Pnl'] = 'OpenCross/RefPrice(9.28)'
-    
-    fdf['Bid'] = imbalanceMsg.Bid_P/imbalanceMsg.ImbRef-1
-    Features['Bid'] = 'Bid(9.28)'
-    
-    fdf['Ask'] = imbalanceMsg.Ask_P/imbalanceMsg.ImbRef-1
-    Features['Ask'] = 'Ask(9.28)'
-    
-    fdf['Ref'] = imbalanceMsg.ImbRef
-    Features['Ref'] = 'Ref(9.28)'
-    
-    fdf['Near'] = imbalanceMsg.ImbCBC/imbalanceMsg.ImbRef-1
-    Features['Near'] = 'Near(9.28)'
-    
-    fdf['Far'] = imbalanceMsg.ImbFar/imbalanceMsg.ImbRef-1
-    Features['Far'] = 'Far(9.28)'
-    
-    fdf['PrevOPC'] = imbalanceMsg.PrevOPC_P/imbalanceMsg.ImbRef-1
-    Features['PrevOPC'] = 'PrevOPC'
-    
-    fdf['PrevCLC'] = imbalanceMsg.PrevCLC_P/imbalanceMsg.ImbRef-1
-    Features['PrevCLC'] = 'PrevCLC'
-
-    
-    fdf.index = range(fdf.shape[0])
-    
-    return fdf, Features
-
-def create_features3(imbalanceMsg):  
-    #Creating features for algorithm
-    import numpy
-    fdf = pd.DataFrame()
-    Features = dict()
-
-    midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
-    bid = imbalanceMsg.Bid_P#nsdq_BP #
-    bidS = imbalanceMsg.Bid_S#nsdq_BS#
-    ref = imbalanceMsg.ImbRef
-    ask = imbalanceMsg.Ask_P#nsdq_AP#
-    askS = imbalanceMsg.Ask_S#nsdq_AS#
-    near = imbalanceMsg.ImbCBC
-    far = imbalanceMsg.ImbFar
-    closeP = imbalanceMsg.PrevCLC_P
-    
-    fdf['Symbol'] = imbalanceMsg.Symbol
-    fdf['Date'] = imbalanceMsg.Date
-
-    fdf['Move'] = imbalanceMsg.Move
-    Features['Move'] = 'Move'
-       
-    fdf['Bid'] = bid/ref-1
-    Features['Bid'] = 'Bid(9.28)'
-    
-    fdf['Ask'] = ask/ref-1
-    Features['Ask'] = 'Ask(9.28)'
-       
-    fdf['Near'] = near/ref-1
-    Features['Near'] = 'Near(9.28)'
-    
-    fdf['Far'] = far/ref-1
-    Features['Far'] = 'Far(9.28)'
-        
-    fdf['PrevCLC'] = closeP/ref-1
-    Features['PrevCLC'] = 'PrevCLC'
-    
-    fdf['Spread'] = (ask - bid)/ref
-    Features['Spread'] = '(Ask-Bid) at 9.28'
-
-    fdf['D3'] = 100*(midP/closeP-1)
-    Features['D3'] = 'Mid(9.28)/CloseCross(day before)-1'
-    
-    fdf['D4'] = 100*(bid-ref)/closeP
-    Features['D4'] = '(Bid(9.28)-ImbRef(9.28))/CloseCross(day before)'
-
-    fdf['D5'] = 100*(ref-ask)/closeP
-    Features['D5'] = '(ImbRef(9.28)-Ask(9.28))/CloseCross(day before)'       
-    
-    fdf['D444'] = (bid-ref)/(1+ask - bid)
-    Features['D444'] = '(Bid(9.28)-ImbRef(9.28))/1+Spread'
-
-    fdf['D555'] = (ref-ask)/(1+ask - bid)
-    Features['D555'] = '(ImbRef(9.28)-Ask(9.28))/1+Spread'
-    
-    fdf['D7'] = 100*(ref/closeP-1)
-    Features['D7'] = 'ImbRef(9.28)/CloseCross(day before)-1'
-    
-    fdf['D66'] = 100*(ref/midP-1)
-    Features['D66'] = 'ImbRef(9.28)/Mid-1'
-
-    fdf['V1'] = (askS - bidS)/(100*numpy.sign(imbalanceMsg.ImbShares)+imbalanceMsg.ImbShares)
-    Features['V1'] = '(Ask_S-Bid_S) at 9.28/Imbalance(9.28)'
-    
-    fdf['V11'] = (askS - bidS)/(100+imbalanceMsg.ImbPaired)
-    Features['V11'] = '(Ask_S-Bid_S) at 9.28/PairedS(9.28)'
-    
-    fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
-    Features['V8'] = 'ImbalanceS(9.28)/PairedS(9.28)'
-         
-    fdf['a3'] = fdf['D3']*fdf['D4']
-    
-    fdf['a4'] = fdf['D5']*fdf['D4']
-    Features['a4'] = Features['D5'] + ' Multiply ' + Features['D4']
-            
-    fdf['a14'] = np.sign(imbalanceMsg.ImbShares)
-    Features['a14'] = 'Sign of Imbalance'
-    
-    fdf.index = range(fdf.shape[0])
-    
-    return fdf, Features
 
 def create_features33(imbalanceMsg):  
     #Creating features for algorithm
-    import numpy
+    import numpy as np
+    import pandas as pd
     fdf = pd.DataFrame()
 
     midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
@@ -521,13 +271,13 @@ def create_features33(imbalanceMsg):
     fdf['D66'] = 100*(ref/midP-1)
     #---------------------------------
     
-    fdf['V1'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+np.abs(imbalanceMsg.ImbShares))
+    fdf['V1'] = np.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+np.abs(imbalanceMsg.ImbShares))
     
-    fdf['V1n'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+np.abs(imbalanceMsg.ImbShares))
+    fdf['V1n'] = np.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+np.abs(imbalanceMsg.ImbShares))
     
-    fdf['V11'] = numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+imbalanceMsg.ImbPaired)
+    fdf['V11'] = np.sign(imbalanceMsg.ImbShares)*(askS - bidS)/(100+imbalanceMsg.ImbPaired)
     
-    fdf['V11n'] =numpy.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+    fdf['V11n'] =np.sign(imbalanceMsg.ImbShares)*(askS - bidS)/((askS + bidS)/2+imbalanceMsg.ImbPaired)
     #---------------------------------
     
     fdf['V8'] = imbalanceMsg.ImbShares/(100+imbalanceMsg.ImbPaired)
@@ -560,14 +310,12 @@ def create_features33(imbalanceMsg):
     
     fdf['a7'] = fdf['D555']*fdf['D555']
     
-    fdf['priceRange'] = numpy.floor(fdf['Mid_P']/10)
+    fdf['priceRange'] = np.floor(fdf['Mid_P']/10)
     
     fdf['imbInd'] = imbalanceMsg.ImbInd
     fdf.imbInd[(fdf['imbInd']!=0) & (fdf['imbInd']!=23)]=1
     fdf.imbInd[fdf['imbInd']==23]=2
-    
-    #fdf = fdf[max3-min3<0.5*ref]
-        
+            
     fdf.index = range(fdf.shape[0])
     
     return fdf
@@ -1618,4 +1366,7 @@ def autocreateFeatures(X_pos,y_pos,ind):
     newX_pos_2 = newX_pos_2[fi['Feature'][:i]]
 
     return newX_pos_2
+
+# <codecell>
+
 

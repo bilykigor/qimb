@@ -55,8 +55,7 @@ class EnsembleClassifier(BaseEstimator, ClassifierMixin):
         ----------
         
         maj : list or numpy array, shape = [n_samples]
-            Predicted class labels by majority rule
-        
+            Predicted class labels by majority rule      
         """
         
         self.classes_ = np.asarray([clf.predict(X) for clf in self.clfs])
@@ -110,42 +109,96 @@ class ColumnSelector(object):
 
 class LabeledEstimator(BaseEstimator, ClassifierMixin):
     """ 
-    For each unique label trains estimator of type clf_class and use its prediction
+    For each unique label trains estimator of type clf_parent and use its prediction
     """
-    def __init__(self, clf_class=None):
-        self.clf_class = clf_class
+    
+    import numpy as np
+    
+    def __init__(self, clf_parent=None):
+        self.clf_parent = clf_parent
         self.clfs = dict()
         
-    def fit(self, X, y, labels = None):       
+    def fit(self, X, y, labels = None):   
+        from sklearn.base import clone
         
-        if not self.clf_class:
+        if type(self.clf_parent)==type(None):
             return
                 
         if type(labels)==type(None):
-            self.clfs['None'] = self.clf_class()
+            self.clfs['None'] = clone(self.clf_parent)
             self.clfs['None'].fit(X, y)
+            self.classes_ = self.clfs['None'].classes_
         else:
             for label in set(labels):
-                self.clfs[label] = self.clf_class()
+                self.clfs[label] = clone(self.clf_parent)
                 self.clfs[label].fit(X.loc[labels==label], y.loc[labels==label])
+                
+            self.classes_ = np.asarray([clf.classes_ for clf in self.clfs.itervalues()])
             
-    def predict(self, X):
-        self.classes_ = np.asarray([clf.predict(X) for clf in self.clfs])
-        if self.weights:
-            avg = self.predict_proba(X)
+    def predict(self, X, labels = None): 
+        return self.predictNSafe(X, labels)
+    
+    def predictNSafe(self, X, labels = None):        
+        proba = self.predict_proba(X, labels)
 
-            maj = np.apply_along_axis(lambda x: max(enumerate(x), key=operator.itemgetter(1))[0], axis=1, arr=avg)
+        return np.argmax(proba,axis=1)
+            
+    def predictMaj(self, X, labels = None):  
+        """
+            Predicted class labels by majority rule      
+        """
+        if type(self.clf_parent)==type(None):
+            return
         
+        if type(labels)==type(None):
+            if (len(self.clfs)>1):
+                tmp = np.asarray([clf.predict(X) for clf in self.clfs.itervalues()])
+   
+                return np.asarray([max(list(tmp[:,c]), key=list(tmp[:,c]).count) for c in range(tmp.shape[1])])
+            else:
+                for clf in self.clfs.itervalues():
+                    return clf.predict(X)
         else:
-            maj = np.asarray([np.argmax(np.bincount(self.classes_[:,c])) for c in range(self.classes_.shape[1])])
-        
-        return maj
+            result=[]
+            for index,row in X.iterrows():
+                if labels[index] in self.clfs:
+                    result.append(self.clfs[labels[index]].predict(row))
+                else:
+                    l =  [clf.predict(row) for clf in self.clfs.itervalues()]
+                    
+                    result.append(max(list(l), key=list(l).count)[0])
+
+            return np.asarray(result)
             
     def predict_proba(self, X, labels = None):
-        if type(labels)==type(None):
-            self.probas_ = [clf.predict_proba(X) for clf in self.clfs.itervalues()]
-            avg = np.average(self.probas_, axis=0)
-            return avg
+
+        if type(self.clf_parent)==type(None):
+            return
+
+        if len(self.clfs)==0:
+            return
+
+        if type(labels)==type(None):#if no lables just get avg prediction of all clfs
+
+            if (len(self.clfs)>1):
+
+                allpred = [clf.predict_proba(X) for clf in self.clfs.itervalues()]
+                return np.average(allpred, axis=0)
+            else:
+
+                for clf in self.clfs.itervalues():
+                    return clf.predict_proba(X)
+        else:
+
+            result=[]
+            for index,row in X.iterrows():
+                if labels[index] in self.clfs:
+                    result.append(self.clfs[labels[index]].predict_proba(row)[0])
+                else:
+                    allpred =  [clf.predict_proba(row) for clf in self.clfs.itervalues()]
+                    result.append(np.average(allpred, axis=0)[0])
+
+            return np.asarray(result)
 
 # <codecell>
 
