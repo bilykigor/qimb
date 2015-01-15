@@ -160,6 +160,7 @@ driversFiles.sort(reverse=False)
 '''for driverID in driversFiles:
     GetFeatures(driverID)'''
 
+num_cores=2
 inputs = range(len(driversFiles)/num_cores)
 for i in inputs:
     r=range(num_cores*i,num_cores*i+num_cores)
@@ -176,7 +177,7 @@ def GetFeatures(driverID):
     for index,tripID in enumerate(tripFiles):                       
         trip = Trip(driverID,tripID,pd.read_csv(driverDir+'/' + str(tripID) + '.csv'))
         F.ix[index,0] = tripID
-        F.ix[index,1:] = asarray(trip.speedQuantiles)
+        F.ix[index,1:] = asarray(trip.accQuantiles)
     
     F.to_csv('../Kaggle/driversFeatures/' + str(driverID) + '.csv')
     del F
@@ -185,7 +186,7 @@ def GetFeatures(driverID):
 # <codecell>
 
 ''' Submission 6'''
-
+from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression as LR
 from sklearn.ensemble import GradientBoostingClassifier as GBC
 from sklearn.ensemble import GradientBoostingRegressor as GBR
@@ -193,8 +194,9 @@ from sklearn.ensemble import RandomForestClassifier as RF
 drivers = map(int,os.listdir('../Kaggle/drivers/'))
 drivers.sort(reverse=False)
 randomDrivers = asarray(drivers)
-featuresDir = '../Kaggle/features/speedQuantiles'
-drivers_sampleSize=50
+#featuresDir = '../Kaggle/features/speedQuantiles'
+featuresDir = '../Kaggle/features/accQuantiles'
+drivers_sampleSize=5
 trips_sampleSize=200
 
 main_df = pd.DataFrame(columns=['driver','trip','prob'])
@@ -221,25 +223,44 @@ for iter, cur_driver in enumerate(drivers):
         ytrain = ytrain.append(pd.DataFrame(np.zeros((trips_sampleSize,1))))    
 
     #clf = LR(class_weight='auto',C=0.1)
-    clf = RF(n_jobs=4)
-    #clf = GBC()
+    
+    '''clf = RF(n_jobs=4)
+    weights = ytrain.copy()
+    weights[0][ytrain[0]==1]=ytrain[ytrain[0]==0].shape[0]
+    weights[0][ytrain[0]==0]=ytrain[ytrain[0]==1].shape[0]
+    clf.fit(Xtrain.ix[:,2:],asarray(ytrain[0]), sample_weight=asarray(weights[0]))
+    '''
+    clf = GBC()
+    #clf = SVC(class_weight='auto',probability=True,kernel='sigmoid',C=0.1)
+
     clf.fit(Xtrain.ix[:,2:],asarray(ytrain[0]))
 
     cur_driver_df.prob = clf.predict_proba(Xpred.ix[:,2:])[:,1]
     if (cur_driver in set(main_df.driver)):
         print 'Error'
         break
+        
+    main_df=main_df.append(cur_driver_df)
     
     #if iter>1:
     #    break
-        
-    main_df=main_df.append(cur_driver_df)
+    
 main_df.index = range(main_df.shape[0])
-main_df.to_csv('../Kaggle/mySubmission.csv',  index_col=None)
+main_df.to_csv('../Kaggle/GBCaccQuantiles.csv',  index_col=None)
 
 # <codecell>
 
-(main_df[main_df.driver==2].prob>0.5).sum()
+from Trip import Trip
+def GetFeatures(driverID):
+    #print driverID
+    driverDir = '../Kaggle/drivers/'+str(driverID)
+    tripFiles = range(1,201)
+   
+    for index,tripID in enumerate(tripFiles):                       
+        trip = Trip(driverID,tripID,pd.read_csv(driverDir+'/' + str(tripID) + '.csv'))
+        trip.features.to_csv(driverDir+'/' + str(tripID) + 'f.csv', index=False)
+        
+    return 0
 
 # <codecell>
 

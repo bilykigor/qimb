@@ -135,6 +135,7 @@ def TreeTest2Txt(clf,X,fileName):
     return
 
 def TreeTest2Sql(clf,X,RFID,Type,Side,con):
+    import pandas as pd
     if (Type==0):
         proba = clf.predict_proba(X)
         df = pd.DataFrame(proba[:,0], columns = ['Probability'])
@@ -209,6 +210,8 @@ def Tree2Txt(clf,t,fileName):
     f.close()
     
 def Tree2Sql(clf,t,RFID,ID, datatypes,con):
+    import numpy as np
+    import pandas as pd
     data = np.zeros((t.capacity+3,7))
     data[:,0] = RFID
     data[:,1] = ID
@@ -296,4 +299,61 @@ def DropDB(db):
     cur = con.execute("DELETE FROM TestResults")
     con.commit()
     con.close()
+
+# <codecell>
+
+def Forest2SqlReg(db,fdf,X_pos,X_neg):
+    #Random forest for regression
+    
+    from sklearn.ensemble import RandomForestRegressor as RFR
+    '''Xpp = X_pos.copy()
+    Xpp = Xpp[ypln_pos>0]
+    Xpp.index = range(Xpp.shape[0])
+
+    clf = RFR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05)
+    clf.fit(Xpp, ypln_pos[ypln_pos>0])
+    qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PP')
+
+    clf = GBR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+    clf.fit(Xpp, ypln_pos[ypln_pos>0])
+    qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PP')'''
+
+    #------------------------------------------
+    Xpn = X_pos.copy()
+    Xpn = Xpn[ypln_pos<0]
+    Xpn.index = range(Xpn.shape[0])
+    
+    clf, r2 = run_reg(X_pos,ypln_pos,RFR,20,20,dates,datesDF_pos)
+    qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PN')
+    qimbs.Forest2Sql(clf, Xpn.ix[:,:],1,1,0,r2,db)
+
+    clf, r2 = run_reg(X_pos,ypln_pos,GBR,20,20,dates,datesDF_pos)
+    qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PN')
+    qimbs.Forest2Sql(clf, Xpn.ix[:,:],1,1,0,r2,db)
+
+    #------------------------------------------
+    '''Xnp = X_neg.copy()
+    Xnp = Xnp[ypln_neg>0]
+    Xnp.index = range(Xnp.shape[0])
+
+    clf = RFR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05)
+    clf.fit(Xnp, ypln_neg[ypln_neg>0])
+    qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NP')
+
+    clf = GBR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
+    clf.fit(Xnp, ypln_neg[ypln_neg>0])
+    qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NP')'''
+
+    #------------------------------------------
+    Xnn = X_neg.copy()
+    Xnn = Xnn[ypln_neg<0]
+    Xnn.index = range(Xnn.shape[0])
+
+    clf, r2 = run_reg(X_neg,ypln_neg,RFR,20,20,dates,datesDF_neg)
+    qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NN')
+    qimbs.Forest2Sql(clf, Xnn.ix[:,:],1,-1,0,r2,db)
+
+    clf, r2 = run_reg(X_neg,ypln_neg,GBR,20,20,dates,datesDF_neg)
+    qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NN')
+    qimbs.Forest2Sql(clf, Xnn.ix[:,:],1,-1,0,r2,db)
 

@@ -5,6 +5,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 # <codecell>
 
@@ -118,22 +119,25 @@ def draw_confusion_matrix(conf_arr, labels, fig, ax):
 
 # <codecell>
 
-def clf_cross_validation(clf,X,y,test_size=None,n_folds=1,labels=None,verbose=True):
+def clf_cross_validation(clf,X,y,test_size=None,n_folds=1,train_test_labels=None,verbose=True):
     """
         when labels!=None
             dont split data with same label in train/test sets 
+            
+        clf object will not be changed. it is cloned for fitting data
     """
+    start = time.time()
     
+    from sklearn.base import clone
     from sklearn.metrics import confusion_matrix
-    from mmll import draw_confusion_matrix
     
     n = X.shape[0]
     
     if type(test_size)==type(None):
         test_size = int(0.1*n)
            
-    if type(labels)!=type(None):
-        lpl = LeavePRandLabelOut(labels,test_size, n_folds)
+    if type(train_test_labels)!=type(None):
+        lpl = LeavePRandLabelOut(train_test_labels,test_size, n_folds)
     else:
         lpl = LeavePRandOut(n, test_size, n_folds)
 
@@ -144,98 +148,59 @@ def clf_cross_validation(clf,X,y,test_size=None,n_folds=1,labels=None,verbose=Tr
     train_cm = np.zeros((n_y_labels,n_y_labels))
     
     if type(clf)!=str: 
-        CLF_BEST = clf
-    TEST_F_Score = 0
+        clf_best = clone(clf)
+    best_fscore = -1
 
     for train_index, test_index in lpl:
+        current_iter_clf =  clone(clf)
         Xtrain, Xtest = X.loc[train_index], X.loc[test_index]
         ytrain, ytest = y.loc[train_index], y.loc[test_index]
-        #print len(set.intersection(set(labels[test_index]),set(labels[train_index])))
 
-        clf.fit(Xtrain,ytrain)
+        current_iter_clf.fit(Xtrain,ytrain)
 
-        ypred = clf.predict(Xtest)
+        ypred = current_iter_clf.predict(Xtest)
 
-        test_cm_tmp = confusion_matrix(ytest,ypred,y_labels).astype(float)
-        test_cm += test_cm_tmp/n_folds
+        tmp = confusion_matrix(ytest,ypred,y_labels).astype(float)
+        test_cm += tmp/n_folds
 
         #save best performance
-        pr =  Precision_Recall(test_cm_tmp, y_labels)
-        if (pr[2]>TEST_F_Score):
-            TEST_F_Score =  pr[2]
-            CLF_BEST = clf   
+        pr =  Precision_Recall(tmp, y_labels)
+        if ((best_fscore)<0 | (pr[2]>best_fscore)):
+            best_fscore =  pr[2]
+            clf_best = current_iter_clf
+            clf_best.fscore = best_fscore
     
     test_pr = Precision_Recall(test_cm, y_labels)
-    
-    print 'Precision - %.2f, Recall - %.2f, F_Score - %.2f, max F_Score - %.2f' % (test_pr[0],test_pr[1],test_pr[2],TEST_F_Score)
+            
+    print '%.1f sec: Precision - %.2f, Recall - %.2f, F_Score - %.2f, max F_Score - %.2f' % (time.time()-start,test_pr[0],test_pr[1],test_pr[2],best_fscore)
     
     if verbose:
         fig1 = plt.figure(figsize=(15, 5))
         ax1 = fig1.add_subplot(1,3,1)
         draw_confusion_matrix(test_cm, y_labels , fig1, ax1)
 
-    return test_cm,CLF_BEST
+    return test_cm,clf_best
 
 # <codecell>
 
-def lclf_cross_validation(clf,X,y,_lables,test_size=None,n_folds=1,labels=None,verbose=True):
+def lclf_cross_validation(clf,X,y,separate_clf_lables,test_size=None,n_folds=1,train_test_labels=None,verbose=True):
     """
-        when labels!=None
-            dont split data with same label in train/test sets 
+        train separate clf for each separate_clf_lables
     """
-    
-    from sklearn.metrics import confusion_matrix
-    from mmll import draw_confusion_matrix
-    
-    n = X.shape[0]
-    
-    if type(test_size)==type(None):
-        test_size = int(0.1*n)
-           
-    if type(labels)!=type(None):
-        lpl = LeavePRandLabelOut(labels,test_size, n_folds)
+    test_cm = dict()
+    clf_best = dict()
+    if type(separate_clf_lables)==type(None):
+        test_cm['None'],clf_best['None']= clf_cross_validation(clf,X,y,test_size=test_size,n_folds=n_folds,train_test_labels=train_test_labels,verbose=verbose)
     else:
-        lpl = LeavePRandOut(n, test_size, n_folds)
-
-    y_labels =  np.sort(list(set(y)))
-    n_y_labels = len(y_labels)
+        for label in set(separate_clf_lables):
+            print 'label %s' %(label)
+            X4label = X.loc[separate_clf_lables==label].copy();X4label.index = range(X4label.shape[0])
+            y4label = y.loc[separate_clf_lables==label].copy();y4label.index = range(y4label.shape[0])
+            train_test_labels4label = train_test_labels.loc[separate_clf_lables==label].copy();train_test_labels4label.index = range(train_test_labels4label.shape[0])
+            test_cm[label],clf_best[label] = \
+            clf_cross_validation(clf,X4label,y4label,test_size=test_size,n_folds=n_folds,train_test_labels=train_test_labels4label,verbose=verbose)
     
-    test_cm = np.zeros((n_y_labels,n_y_labels))
-    
-    if type(clf)!=str: 
-        CLF_BEST = clf
-    TEST_F_Score = 0
-
-    for train_index, test_index in lpl:
-        Xtrain, Xtest = X.loc[train_index], X.loc[test_index]
-        ytrain, ytest = y.loc[train_index], y.loc[test_index]
-        lables_train, lables_test = _lables.loc[train_index], _lables.loc[test_index]
-        
-        #print len(set.intersection(set(labels[test_index]),set(labels[train_index])))
-
-        clf.fit(Xtrain,ytrain,labels=lables_train)
-
-        ypred = clf.predict(Xtest,labels=lables_test)
-
-        test_cm_tmp = confusion_matrix(ytest,ypred,y_labels).astype(float)
-        test_cm += test_cm_tmp/n_folds
-
-        #save best performance
-        pr =  Precision_Recall(test_cm_tmp, y_labels)
-        if (pr[2]>TEST_F_Score):
-            TEST_F_Score =  pr[2]
-            CLF_BEST = clf   
-    
-    test_pr = Precision_Recall(test_cm, y_labels)
-    
-    print 'Precision - %.2f, Recall - %.2f, F_Score - %.2f, max F_Score - %.2f' % (test_pr[0],test_pr[1],test_pr[2],TEST_F_Score)
-    
-    if verbose:
-        fig1 = plt.figure(figsize=(15, 5))
-        ax1 = fig1.add_subplot(1,3,1)
-        draw_confusion_matrix(test_cm, y_labels , fig1, ax1)
-
-    return test_cm,CLF_BEST
+    return test_cm,clf_best
 
 # <codecell>
 

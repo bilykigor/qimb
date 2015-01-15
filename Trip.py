@@ -36,9 +36,10 @@ class Trip:
         #self.getRadius()
         #self.RemoveRadiusOutliers()
         self.getSpeed()
-        self.getSpeedQuantiles()
         #self.RemoveSpeedOutliers()
-        #self.getFeatures()
+        self.getAcc()
+        self.getFeatures()
+        #self.getQuantiles()
         
     def getTripLen(self):
         self.n = self.coordinates.shape[0]
@@ -48,8 +49,14 @@ class Trip:
             l+=self.DistanceInd(i-1,1)
         self.tripLen = l
     
-    def getSpeedQuantiles(self):
+    def getQuantiles(self):
         self.speedQuantiles = self.speed.m_s.quantile([x*0.05 for x in range(1,20)])
+        self.accQuantiles = self.acc.m_s2.quantile([x*0.05 for x in range(1,20)])
+        
+    def getAcc(self):
+        x=np.asarray(self.speed.m_s)
+        self.acc = pd.DataFrame(x[self.window:]-x[:-self.window])
+        self.acc.columns = ['m_s2']
         
     def getSpeed(self):
         x=np.asarray(self.coordinates.x)
@@ -66,14 +73,12 @@ class Trip:
         for i in range(self.n-1):
             self.speed.m_s[i] = self.DistanceInd(i,1)'''
     
-    def getFeatures(self):
-        self.n = self.coordinates.shape[0]
+    def getFeatures(self):               
+        self.features = pd.DataFrame(self.acc.copy())
+        self.features.columns = ['acc']
+        self.features['v'] = np.asarray(pd.rolling_mean(self.speed.m_s,window=2).ix[1:])
         
-        self.speed = pd.DataFrame(np.zeros((self.n-1,1)))
-        self.speed.columns = ['m_s']
-                
-        self.features = pd.DataFrame(np.zeros((self.n-2,3)))
-        self.features.columns = ['acc','cacc','v']
+        '''self.features.columns = ['acc','cacc','v']
         
         i=0
         self.speed.m_s[i] = self.DistanceInd(i,1)
@@ -86,7 +91,7 @@ class Trip:
             if self.Radius(i-1)>1:
                 self.features.cacc[i-1] = pow(self.features.v[i-1],2)/self.Radius(i-1)
 
-            self.features.acc[i-1] = self.speed.m_s[i]-self.speed.m_s[i-1]
+            self.features.acc[i-1] = self.speed.m_s[i]-self.speed.m_s[i-1]'''
     
     def Distance(self,x1,y1,x2,y2):
         return pow(pow(x1-x2,2)+pow(y1-y2,2),0.5)

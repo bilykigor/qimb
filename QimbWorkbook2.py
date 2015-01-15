@@ -5,18 +5,20 @@
 
 import qimbs 
 import mmll
+import EnsembleClassifier as ec
+import mio
+
 import numpy as np
 import pandas as pd
 from ggplot import *
-from sklearn.preprocessing import PolynomialFeatures
+
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression as LR
 from sklearn.ensemble import GradientBoostingClassifier as GBC
 from sklearn.ensemble import GradientBoostingRegressor as GBR
 from sklearn.ensemble import RandomForestClassifier as RF
 
-from EnsembleClassifier import EnsembleClassifier
-from EnsembleClassifier import LabeledEstimator
+from sklearn.base import clone
 
 # <codecell>
 
@@ -47,7 +49,10 @@ sum(map(int,imbalanceMsg.ImbInd==0))
 reload(qimbs)
 fdf = qimbs.create_features33(imbalanceMsg)
 fdf.head()
-fdf.priceRange[fdf.priceRange>10]=11
+
+# <codecell>
+
+fdf.priceRange[fdf.priceRange>1]=1
 
 # <codecell>
 
@@ -55,7 +60,7 @@ fdf.priceRange[fdf.priceRange>10]=11
 
 # <codecell>
 
-#fdf = fdf[fdf.priceRange>12]
+#fdf = fdf[fdf.priceRange==0]
 #fdf.index = range(fdf.shape[0])
 
 # <codecell>
@@ -64,13 +69,13 @@ X_pos = fdf[fdf.a14>0]
 X_pos.index = range(X_pos.shape[0])
 X_pos=X_pos[['Ask','AskD','Near','Far','Spread',
  'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
- 'V8','V8n','V8nn', 'a1','a4','a5','priceRange']]
+ 'V8','V8n','V8nn', 'a1','a4','a5']]
 
 X_neg = fdf[fdf.a14<0]
 X_neg.index = range(X_neg.shape[0])
 X_neg=X_neg[['Bid','BidD','Near','Far','Spread',
  'D4',  'D444', 'D66', 'V1','V1n', 'V11',  'V11n',
- 'V8','V8n','V8nn', 'a1','a4','a5','priceRange']]
+ 'V8','V8n','V8nn', 'a1','a4','a5']]
 
 y_pos = fdf.OPC_P>fdf.Ask_P
 y_pos = y_pos[fdf.a14>0]
@@ -94,7 +99,7 @@ ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 # <codecell>
 
-ret = 0.2
+ret = 0.01
 
 ym_pos = fdf.imbInd.copy()
 ym_pos[:] = 0
@@ -110,7 +115,7 @@ ym_neg.index = range(ym_neg.shape[0])
 
 # <codecell>
 
-ret = 0.2/100
+ret = 0.01/100
 
 yr_pos = fdf.imbInd.copy()
 yr_pos[:] = 0
@@ -134,40 +139,50 @@ X_pos.head()
 
 # <codecell>
 
-eclf_pos = EnsembleClassifier(
+eclf_pos = RF(min_samples_split = int(len(yr_pos)*0.03),criterion='entropy',n_jobs=4)
+'''ec.EnsembleClassifier(
 clfs=[
-RF(min_samples_split = int(len(ym_pos)*0.03),criterion='entropy',n_jobs=4)
-#,GBC(min_samples_split = len(ym_pos)*0.03,init='zero')
+RF(min_samples_split = int(len(yr_pos)*0.03),criterion='entropy',n_jobs=4)
+#,GBC(min_samples_split = len(yr_pos)*0.03,init='zero')
 #,LR(class_weight='auto',C=0.1)
-])
+])'''
 
-eclf_neg = EnsembleClassifier(
+eclf_neg = RF(min_samples_split = int(len(yr_neg)*0.03),criterion='entropy',n_jobs=4)
+'''= ec.EnsembleClassifier(
 clfs=[
-RF(min_samples_split = int(len(ym_neg)*0.03),criterion='entropy',n_jobs=4)
-#,GBC(min_samples_split = len(ym_neg)*0.03,init='zero')
+RF(min_samples_split = int(len(yr_neg)*0.03),criterion='entropy',n_jobs=4)
+#,GBC(min_samples_split = len(yr_neg)*0.03,init='zero')
 #,LR(class_weight='auto',C=0.1)
-])
+])'''
 
 # <codecell>
 
 labels_pos = fdf[fdf.a14>0].priceRange; labels_pos.index = range(labels_pos.shape[0])
 labels_neg = fdf[fdf.a14<0].priceRange; labels_neg.index = range(labels_neg.shape[0])
-lclf_pos=LabeledEstimator(RF(min_samples_split = int(len(ym_pos)*0.03),criterion='entropy',n_jobs=4))
-lclf_neg=LabeledEstimator(RF(min_samples_split = int(len(ym_neg)*0.03),criterion='entropy',n_jobs=4))
+ttlabesl_pos = fdf[fdf.a14>0].Date;ttlabesl_pos.index = range(ttlabesl_pos.shape[0])
+ttlabesl_neg = fdf[fdf.a14<0].Date;ttlabesl_neg.index = range(ttlabesl_neg.shape[0])
 
 # <codecell>
 
 reload(qimbs)
 reload(mmll)
+reload(ec)
 
 # <codecell>
 
-#cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=30,labels = fdf[fdf.a14>0].Date,verbose = False)
-cm,clf = mmll.lclf_cross_validation(lclf_pos,X_pos,yr_pos,labels_pos,test_size=5,n_folds=30,labels = fdf[fdf.a14>0].Date,verbose = False)
+cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=50,train_test_labels = ttlabesl_pos,verbose = True)
 
 # <codecell>
 
-cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=30,labels = fdf[fdf.a14<0].Date,verbose = False)
+cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=50,train_test_labels = ttlabesl_neg,verbose = True)
+
+# <codecell>
+
+
+
+
+
+
 
 # <codecell>
 
@@ -180,136 +195,75 @@ cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=30,
 
 # <codecell>
 
-db = '/home/user1/Desktop/Share2Windows/RandomForestDatabase.sql'
-reload(qimbs)
-qimbs.DropDB(db)
-
-# <codecell>
-
-reload(qimbs)
-qimbs.TestData2Sql(1, X_pos,ypln_pos,db)
-qimbs.TestData2Sql(-1, X_neg,ypln_neg,db)
-
-# <codecell>
-
-reload(qimbs)
-Forest2SqlClf(0.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(1.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(2.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(3.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(4.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(5.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(7.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(9.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(11.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(13.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(15.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(17.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-Forest2SqlClf(19.0,db,fdf,X_pos,X_neg,dates,datesDF_pos,datesDF_neg)
-
-# <codecell>
-
-reload(qimbs)
-Forest2SqlReg(db,fdf,X_pos,X_neg)
-
-# <codecell>
-
-def Forest2SqlClf(advantage,db,df,priceRangeMin,priceRangeMax):
-    df = df[(df.priceRange>=priceRangeMin) & (df.priceRange<priceRangeMax)]
-    df.index = range(df.shape[0])
-    
-    X_p = df[df.a14>0]
+def Forest2SqlClfPerc(eclf_pos,eclf_neg,advantage,db,df):  
+    X_p = df[df.a14>0].copy()
     X_p.index = range(X_p.shape[0])
     X_p=X_p[['Ask','AskD','Near','Far','Spread',
      'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
      'V8','V8n','V8nn', 'a1','a4','a5']]
 
-    X_n = df[df.a14<0]
+    X_n = df[df.a14<0].copy()
     X_n.index = range(X_n.shape[0])
     X_n=X_n[['Bid','BidD','Near','Far','Spread',
      'D4',  'D444', 'D66', 'V1','V1n', 'V11',  'V11n',
      'V8','V8n','V8nn', 'a1','a4','a5']]
 
-    y_p = df.OPC_P.copy()
+    y_p = df.imbInd.copy()
     y_p[:] = 0
-    y_p[df.OPC_P>df.Ask_P+advantage/100] = 1
-    y_p = y_pos[df.a14>0]
+    y_p[df.OPC_P/df.Ask_P-1.0>advantage/10000]=1
+    y_p = y_p[df.a14>0]
     y_p.index = range(y_p.shape[0])
 
-    y_n = df.OPC_P.copy()
+    y_n = df.imbInd.copy()
     y_n[:] = 0
-    y_n[df.OPC_P<df.Bid_P-advantage/100] = 1
+    y_n[df.OPC_P/df.Bid_P-1<-advantage/10000]=1
     y_n = y_n[df.a14<0]
     y_n.index = range(y_n.shape[0])
     
-    dates = sorted(list(set(df.Date)))
-    datesDF_p = qimbs.dates_tmp_df(df[df.a14>0])
-    datesDF_n = qimbs.dates_tmp_df(df[df.a14<0])
+    ttlabesl_pos = df[df.a14>0].Date.copy();ttlabesl_pos.index = range(ttlabesl_pos.shape[0])
+    ttlabesl_neg = df[df.a14<0].Date.copy();ttlabesl_neg.index = range(ttlabesl_neg.shape[0])
     
-    trainError, testError, cm, clf, fscore1 = \
-    qimbs.run_cv_proba(X_p,y_p,RF,20,20,dates,datesDF_p)
-    qimbs.Forest2Sql(clf, X_p,0,1,advantage,fscore1,db)
+    cm,clf = mmll.clf_cross_validation\
+    (eclf_pos,X_p,y_p,test_size=20,n_folds=20,train_test_labels = ttlabesl_pos,verbose = False)
+    fscore1 = clf.fscore
+    mio.Forest2Sql(clf, X_p,0,1,advantage,fscore1,db)
     
-    trainError, testError, cm, clf, fscore2 = \
-    qimbs.run_cv_proba(X_n,y_n,RF,20,20,dates,datesDF_n)
-    qimbs.Forest2Sql(clf,X_n,0,-1,advantage,fscore2,db)
+    cm,clf = mmll.clf_cross_validation\
+    (eclf_neg,X_n,y_n,test_size=20,n_folds=20,train_test_labels = ttlabesl_neg,verbose = False)
+    fscore2 = clf.fscore
+    mio.Forest2Sql(clf,X_n,0,-1,advantage,fscore2,db)
     
     print "f1-", fscore1, " f2-",fscore2
 
 # <codecell>
 
-def Forest2SqlReg(db,fdf,X_pos,X_neg):
-    #Random forest for regression
-    
-    from sklearn.ensemble import RandomForestRegressor as RFR
-    '''Xpp = X_pos.copy()
-    Xpp = Xpp[ypln_pos>0]
-    Xpp.index = range(Xpp.shape[0])
+db = '/home/user1/Desktop/Share2Windows/RandomForestDatabasePercentageAdvantage.sql'
+reload(mio)
+mio.DropDB(db)
 
-    clf = RFR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05)
-    clf.fit(Xpp, ypln_pos[ypln_pos>0])
-    qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PP')
+# <codecell>
 
-    clf = GBR(min_samples_split = ypln_pos[ypln_pos>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
-    clf.fit(Xpp, ypln_pos[ypln_pos>0])
-    qimbs.Forest2Txt(clf, Xpp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PP')'''
+reload(mio)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,0.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,1.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,2.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,3.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,4.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,5.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,7.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,9.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,11.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,13.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,15.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,17.0,db,fdf)
+Forest2SqlClfPerc(eclf_pos,eclf_neg,19.0,db,fdf)
 
-    #------------------------------------------
-    Xpn = X_pos.copy()
-    Xpn = Xpn[ypln_pos<0]
-    Xpn.index = range(Xpn.shape[0])
-    
-    clf, r2 = run_reg(X_pos,ypln_pos,RFR,20,20,dates,datesDF_pos)
-    qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/PN')
-    qimbs.Forest2Sql(clf, Xpn.ix[:,:],1,1,0,r2,db)
+# <codecell>
 
-    clf, r2 = run_reg(X_pos,ypln_pos,GBR,20,20,dates,datesDF_pos)
-    qimbs.Forest2Txt(clf, Xpn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/PN')
-    qimbs.Forest2Sql(clf, Xpn.ix[:,:],1,1,0,r2,db)
+reload(mio)
+mio.TestData2Sql(1, X_pos,ypln_pos,db)
+mio.TestData2Sql(-1, X_neg,ypln_neg,db)
 
-    #------------------------------------------
-    '''Xnp = X_neg.copy()
-    Xnp = Xnp[ypln_neg>0]
-    Xnp.index = range(Xnp.shape[0])
+# <codecell>
 
-    clf = RFR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05)
-    clf.fit(Xnp, ypln_neg[ypln_neg>0])
-    qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NP')
-
-    clf = GBR(min_samples_split = ypln_neg[ypln_neg>0].shape[0]*0.05, loss='huber',init='zero',learning_rate=0.1)
-    clf.fit(Xnp, ypln_neg[ypln_neg>0])
-    qimbs.Forest2Txt(clf, Xnp.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NP')'''
-
-    #------------------------------------------
-    Xnn = X_neg.copy()
-    Xnn = Xnn[ypln_neg<0]
-    Xnn.index = range(Xnn.shape[0])
-
-    clf, r2 = run_reg(X_neg,ypln_neg,RFR,20,20,dates,datesDF_neg)
-    qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/Forest/NN')
-    qimbs.Forest2Sql(clf, Xnn.ix[:,:],1,-1,0,r2,db)
-
-    clf, r2 = run_reg(X_neg,ypln_neg,GBR,20,20,dates,datesDF_neg)
-    qimbs.Forest2Txt(clf, Xnn.ix[:,:],'/home/user1/Desktop/Share2Windows/GradientBoost/NN')
-    qimbs.Forest2Sql(clf, Xnn.ix[:,:],1,-1,0,r2,db)
 

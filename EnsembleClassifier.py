@@ -127,21 +127,23 @@ class LabeledEstimator(BaseEstimator, ClassifierMixin):
         if type(labels)==type(None):
             self.clfs['None'] = clone(self.clf_parent)
             self.clfs['None'].fit(X, y)
-            self.classes_ = self.clfs['None'].classes_
         else:
             for label in set(labels):
                 self.clfs[label] = clone(self.clf_parent)
                 self.clfs[label].fit(X.loc[labels==label], y.loc[labels==label])
-                
-            self.classes_ = np.asarray([clf.classes_ for clf in self.clfs.itervalues()])
             
     def predict(self, X, labels = None): 
-        return self.predictNSafe(X, labels)
-    
-    def predictNSafe(self, X, labels = None):        
-        proba = self.predict_proba(X, labels)
-
-        return np.argmax(proba,axis=1)
+        md = dict()
+        md['None'] = self.predictMaj(X)
+        for key in self.clfs.keys():
+            md[key] = self.clfs[key].predict(X)
+            
+        if type(labels)==type(None):
+            return np.asarray(md['None'])
+        else:           
+            f = lambda md,key,i: md[key][i] if md.has_key(key) else md['None'][i]
+            
+            return np.asarray([f(md,key,i) for i,key in enumerate(labels)])
             
     def predictMaj(self, X, labels = None):  
         """
@@ -152,8 +154,10 @@ class LabeledEstimator(BaseEstimator, ClassifierMixin):
         
         if type(labels)==type(None):
             if (len(self.clfs)>1):
+                #clf for each label makes prediction 
                 tmp = np.asarray([clf.predict(X) for clf in self.clfs.itervalues()])
-   
+                
+                #then as a result we use class wich appeared most frequently
                 return np.asarray([max(list(tmp[:,c]), key=list(tmp[:,c]).count) for c in range(tmp.shape[1])])
             else:
                 for clf in self.clfs.itervalues():
@@ -179,26 +183,22 @@ class LabeledEstimator(BaseEstimator, ClassifierMixin):
             return
 
         if type(labels)==type(None):#if no lables just get avg prediction of all clfs
-
             if (len(self.clfs)>1):
-
                 allpred = [clf.predict_proba(X) for clf in self.clfs.itervalues()]
                 return np.average(allpred, axis=0)
             else:
-
                 for clf in self.clfs.itervalues():
                     return clf.predict_proba(X)
         else:
+            md = dict()
+            allpred = [clf.predict_proba(X) for clf in self.clfs.itervalues()]
+            md['None'] = np.average(allpred, axis=0)
+            for key in self.clfs.keys():
+                md[key] = self.clfs[key].predict_proba(X)
 
-            result=[]
-            for index,row in X.iterrows():
-                if labels[index] in self.clfs:
-                    result.append(self.clfs[labels[index]].predict_proba(row)[0])
-                else:
-                    allpred =  [clf.predict_proba(row) for clf in self.clfs.itervalues()]
-                    result.append(np.average(allpred, axis=0)[0])
-
-            return np.asarray(result)
+            f = lambda md,key,i: md[key][i] if md.has_key(key) else md['None'][i]
+            
+            return np.asarray([f(md,key,i) for i,key in enumerate(labels)])
 
 # <codecell>
 
