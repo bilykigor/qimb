@@ -35,10 +35,10 @@ class Trip:
         #self.RemoveDirectionOutliers()
         #self.getRadius()
         #self.RemoveRadiusOutliers()
-        self.getSpeed()
+        #self.getSpeed()
         #self.RemoveSpeedOutliers()
-        self.getAcc()
-        self.getFeatures()
+        #self.getAcc()
+        #self.getFeatures()
         #self.getQuantiles()
         
     def getTripLen(self):
@@ -48,50 +48,42 @@ class Trip:
         for i in range(1,self.n):
             l+=self.DistanceInd(i-1,1)
         self.tripLen = l
+        
+    def Quantiles(self,X):
+        return X.quantile([x*0.02 for x in range(0,51)])
     
     def getQuantiles(self):
-        self.speedQuantiles = self.speed.m_s.quantile([x*0.05 for x in range(1,20)])
-        self.accQuantiles = self.acc.m_s2.quantile([x*0.05 for x in range(1,20)])
+        self.speedQuantiles = self.speed.val.quantile([x*0.02 for x in range(0,51)])
+        self.accQuantiles = self.acc.val.quantile([x*0.02 for x in range(0,51)])
         
     def getAcc(self):
-        x=np.asarray(self.speed.m_s)
+        x=np.asarray(self.speed.val)
         self.acc = pd.DataFrame(x[self.window:]-x[:-self.window])
-        self.acc.columns = ['m_s2']
+        self.acc.columns = ['val']
+        
+        x=np.asarray(self.acc.val)
+        self.acc2 = pd.DataFrame(x[self.window:]-x[:-self.window])
+        self.acc2.columns = ['val']
+        
+    def getCacc(self):
+        self.cacc = \
+        pd.DataFrame(np.asarray(pd.rolling_mean(self.speed.val,window=2).ix[1:])**2\
+                     /np.asarray(self.radius.m),columns=['val'])
+        
         
     def getSpeed(self):
         x=np.asarray(self.coordinates.x)
         y=np.asarray(self.coordinates.y)
         self.speed = pd.DataFrame(\
         np.sqrt((x[self.window:]-x[:-self.window])**2 + (y[self.window:]-y[:-self.window])**2)/self.window)
-        self.speed.columns = ['m_s']
-        
-        '''self.n = self.coordinates.shape[0]
-        
-        self.speed = pd.DataFrame(np.zeros((self.n-1,1)))
-        self.speed.columns = ['m_s']
-        
-        for i in range(self.n-1):
-            self.speed.m_s[i] = self.DistanceInd(i,1)'''
+        self.speed.columns = ['val']
     
     def getFeatures(self):               
-        self.features = pd.DataFrame(self.acc.copy())
-        self.features.columns = ['acc']
-        self.features['v'] = np.asarray(pd.rolling_mean(self.speed.m_s,window=2).ix[1:])
-        
-        '''self.features.columns = ['acc','cacc','v']
-        
-        i=0
-        self.speed.m_s[i] = self.DistanceInd(i,1)
-        
-        for i in range(1,self.n-1):
-            self.speed.m_s[i] = self.DistanceInd(i,1)
-            
-            self.features.v[i-1]=0.5*(self.speed.m_s[i-1]+self.speed.m_s[i])
-            
-            if self.Radius(i-1)>1:
-                self.features.cacc[i-1] = pow(self.features.v[i-1],2)/self.Radius(i-1)
+        self.features = pd.DataFrame(self.acc2.copy())
+        self.features.columns = ['acc2']
+        self.features['acc'] = np.asarray(pd.rolling_mean(self.acc.val,window=2).ix[1:])
+        self.features['v'] = np.asarray(pd.rolling_mean(self.speed.val,window=3).ix[2:])
 
-            self.features.acc[i-1] = self.speed.m_s[i]-self.speed.m_s[i-1]'''
     
     def Distance(self,x1,y1,x2,y2):
         return pow(pow(x1-x2,2)+pow(y1-y2,2),0.5)
@@ -102,31 +94,29 @@ class Trip:
    
     def Radius(self,i):
         a = self.DistanceInd(i,1)
-        #self.Distance(self.coordinates.x[i],self.coordinates.y[i],self.coordinates.x[i+1],self.coordinates.y[i+1])
         b = self.DistanceInd(i+1,1)
-        #self.Distance(self.coordinates.x[i+2],self.coordinates.y[i+2],self.coordinates.x[i+1],self.coordinates.y[i+1])
         c = self.DistanceInd(i,2)
-        #self.Distance(self.coordinates.x[i],self.coordinates.y[i],self.coordinates.x[i+2],self.coordinates.y[i+2])
         
         p = 0.5*(a+b+c)
         denom = p*(p-a)*(p-b)*(p-c)
         if denom<=0:
-            return inf
+            return np.inf
         else:
             return 0.25*a*b*c/pow(denom,0.5)
     
     def Turn(self,w,v):
-        norm = numpy.linalg.norm(v)
-        m= matrix(zeros((2,2)))
+        norm = np.linalg.norm(v)
+        m= np.matrix(np.zeros((2,2)))
         m[0,0] = v.x/norm;m[0,1] = -v.y/norm
         m[1,0] = v.y/norm;m[1,1] = v.x/norm
-        [xn,yn] = m.T*matrix(w).T
+        [xn,yn] = m.T*np.matrix(w).T
         return xn,yn
     
     def DropPrecision(self):
         self.n = self.coordinates.shape[0]
         for i in range(self.n-1):
             if self.DistanceInd(i,1)<1.5:
+                #print i
                 self.coordinates.x[i+1] = self.coordinates.x[i]
                 self.coordinates.y[i+1] = self.coordinates.y[i]
         
@@ -152,6 +142,7 @@ class Trip:
                 sample.x[1],sample.y[1] =  self.Turn(sample.ix[1,:],sample.ix[1,:])
 
                 if (((sample.y[2]>0) & (sample.y[3]<0)) | ((sample.y[2]<0) & (sample.y[3]>0))):
+                    #print i
                     self.coordinates.x[i+2] = 0.5*(self.coordinates.x[i+3]+self.coordinates.x[i+1])
                     self.coordinates.y[i+2] = 0.5*(self.coordinates.y[i+3]+self.coordinates.y[i+1])
                     errors+=1
@@ -175,7 +166,7 @@ class Trip:
             iteration+=1
             errors = 0
             for i in range(n):                
-                if self.radius.m[i]==inf:
+                if self.radius.m[i]==np.inf:
                     continue
                     
                 if (self.radius.m[i]<2):# | (self.radius.m[i]>500)):
@@ -201,19 +192,20 @@ class Trip:
             iteration+=1
             errors = 0
             for i in range(1,n-1):
-                cond1 = (self.speed.m_s[i]>self.speed.m_s[i-1] + 2.0/3.6) & \
-                        (self.speed.m_s[i]>=self.speed.m_s[i+1] - 1.0/3.6)
-                cond2 = (self.speed.m_s[i]<self.speed.m_s[i-1] - 2.0/3.6) & \
-                        (self.speed.m_s[i]<=self.speed.m_s[i+1] + 1.0/3.6)
-                cond3 = (self.speed.m_s[i]>=self.speed.m_s[i-1] - 1.0/3.6) & \
-                        (self.speed.m_s[i]>self.speed.m_s[i+1] + 2.0/3.6)
-                cond4 = (self.speed.m_s[i]<=self.speed.m_s[i-1] + 1.0/3.6) & \
-                        (self.speed.m_s[i]<self.speed.m_s[i+1] - 2.0/3.6)
+                cond1 = (self.speed.val[i]>self.speed.val[i-1] + 2.0/3.6) & \
+                        (self.speed.val[i]>=self.speed.val[i+1] - 1.0/3.6)
+                cond2 = (self.speed.val[i]<self.speed.val[i-1] - 2.0/3.6) & \
+                        (self.speed.val[i]<=self.speed.val[i+1] + 1.0/3.6)
+                cond3 = (self.speed.val[i]>=self.speed.val[i-1] - 1.0/3.6) & \
+                        (self.speed.val[i]>self.speed.val[i+1] + 2.0/3.6)
+                cond4 = (self.speed.val[i]<=self.speed.val[i-1] + 1.0/3.6) & \
+                        (self.speed.val[i]<self.speed.val[i+1] - 2.0/3.6)
                     
                 if (cond1 | cond3):
+                    #print i
                     v = [self.coordinates.x[i] - self.coordinates.x[i+1],\
                          self.coordinates.y[i] - self.coordinates.y[i+1]]
-                    norm = numpy.linalg.norm(v)
+                    norm = np.linalg.norm(v)
                     if norm==0:
                         continue
                     v[0]/=norm
@@ -222,15 +214,16 @@ class Trip:
                     self.coordinates.x[i+1] += move*v[0]
                     self.coordinates.y[i+1] += move*v[1]
                     
-                    self.speed.m_s[i] = self.DistanceInd(i,1)
-                    self.speed.m_s[i+1] = self.DistanceInd(i+1,1)
+                    self.speed.val[i] = self.DistanceInd(i,1)
+                    self.speed.val[i+1] = self.DistanceInd(i+1,1)
                     
                     errors+=1
                     
                 if (cond2 | cond4):
+                    #print i
                     v = [self.coordinates.x[i-1] - self.coordinates.x[i],\
                          self.coordinates.y[i-1] - self.coordinates.y[i]]
-                    norm = numpy.linalg.norm(v)
+                    norm = np.linalg.norm(v)
                     if norm==0:
                         continue
                     v[0]/=norm
@@ -239,8 +232,8 @@ class Trip:
                     self.coordinates.x[i] += move*v[0]
                     self.coordinates.y[i] += move*v[1]
                                    
-                    self.speed.m_s[i-1] = self.DistanceInd(i-1,1)
-                    self.speed.m_s[i] = self.DistanceInd(i,1)
+                    self.speed.val[i-1] = self.DistanceInd(i-1,1)
+                    self.speed.val[i] = self.DistanceInd(i,1)
                     
                     errors+=1
                     

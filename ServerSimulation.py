@@ -31,7 +31,6 @@ def importData(df,d):
 
 # <codecell>
 
-#Benchmark
 df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTraded','Pps'])
 d='/home/user1/Desktop/Share2Windows/B/'
 df=importData(df,d);
@@ -140,8 +139,51 @@ ggtitle('pnl = %s, avg_pps = %s, avg_Exp = %s' % (df.Pnl.sum(),df.Pps.mean(),df.
 
 # <codecell>
 
+#
+#This is Benchmark
+#
 df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTraded','Pps'])
 d='/home/user1/Desktop/Share2Windows/qimb_100shares_0.1spread_new_w15_longlatency/'
+df=importData(df,d);
+ggplot(df,aes('Day','Pnl')) + geom_point(alpha=0.5) + stat_smooth(colour='green', span=0.3) + \
+ggtitle('pnl = %s, avg_pps = %s, avg_Exp = %s' % (df.Pnl.sum(),df.Pps.mean(),df.ValueTraded.mean()))
+
+# <codecell>
+
+df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTraded','Pps'])
+d='/home/user1/Desktop/Share2Windows/qimb_100shares_0.1spread_new_w15_longlatency_PCprobPosNeg/'
+df=importData(df,d);
+ggplot(df,aes('Day','Pnl')) + geom_point(alpha=0.5) + stat_smooth(colour='green', span=0.3) + \
+ggtitle('pnl = %s, avg_pps = %s, avg_Exp = %s' % (df.Pnl.sum(),df.Pps.mean(),df.ValueTraded.mean()))
+
+# <codecell>
+
+df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTraded','Pps'])
+d='/home/user1/Desktop/Share2Windows/Qimb/Simulations/qimb_100shares_0.1spread_new_w15_longlatency_PCprobPosNegAllImb/'
+df=importData(df,d);
+ggplot(df,aes('Day','Pnl')) + geom_point(alpha=0.5) + stat_smooth(colour='green', span=0.3) + \
+ggtitle('pnl = %s, avg_pps = %s, avg_Exp = %s' % (df.Pnl.sum(),df.Pps.mean(),df.ValueTraded.mean()))
+
+# <codecell>
+
+df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTraded','Pps'])
+d='/home/user1/Desktop/Share2Windows/Qimb/Simulations/qimb_100shares_0.1spread_new_w15_longlatency_B/'
+df=importData(df,d);
+ggplot(df,aes('Day','Pnl')) + geom_point(alpha=0.5) + stat_smooth(colour='green', span=0.3) + \
+ggtitle('pnl = %s, avg_pps = %s, avg_Exp = %s' % (df.Pnl.sum(),df.Pps.mean(),df.ValueTraded.mean()))
+
+# <codecell>
+
+df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTraded','Pps'])
+d='/home/user1/Desktop/Share2Windows/Qimb/Simulations/qimb_100shares_0.1spread_new_w15_longlatency_B_AllImb/'
+df=importData(df,d);
+ggplot(df,aes('Day','Pnl')) + geom_point(alpha=0.5) + stat_smooth(colour='green', span=0.3) + \
+ggtitle('pnl = %s, avg_pps = %s, avg_Exp = %s' % (df.Pnl.sum(),df.Pps.mean(),df.ValueTraded.mean()))
+
+# <codecell>
+
+df = pd.DataFrame(columns=['Day','Pnl','SharesTraded','OrdersTraded','ValueTraded','Pps'])
+d='/home/user1/Desktop/Share2Windows/qimb_100shares_0.1spread_new_w15_longlatency_PC/'
 df=importData(df,d);
 ggplot(df,aes('Day','Pnl')) + geom_point(alpha=0.5) + stat_smooth(colour='green', span=0.3) + \
 ggtitle('pnl = %s, avg_pps = %s, avg_Exp = %s' % (df.Pnl.sum(),df.Pps.mean(),df.ValueTraded.mean()))

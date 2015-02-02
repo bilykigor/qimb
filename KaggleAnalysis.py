@@ -3,193 +3,197 @@
 
 # <codecell>
 
-import qimbs 
 import numpy as np
 import pandas as pd
 from ggplot import *
-from sklearn.preprocessing import PolynomialFeatures
 import os
 from Trip import Trip
-
-# <codecell>
-
-trips = []
-
-driverID = 1
-driverDir = '../Kaggle/drivers/'+str(driverID)
-tripFiles = os.listdir(driverDir)
-
-for index, tripFile in enumerate(tripFiles):
-    if (tripFile.split('.')[0][-1]!='f'):
-        df = pd.read_csv(driverDir+'/' + tripFile)
-        trip = Trip(driverID,int(tripFile.split('.')[0]),df)
-        trips.append(trip)  
-
-        if index>2:
-            break
-
-# <codecell>
-
-trip.features.to_csv('1.csv', index=False)
-
-# <codecell>
-
-tripInd = 1
-start = 0
-end = trips[tripInd].n
-
-# <codecell>
-
-trips[tripInd].Radius(46)
-#Radius(46)
-
-# <codecell>
-
-trips[tripInd].radius.ix[start:end,:]
-
-# <codecell>
-
-trips[tripInd].speed.ix[start:end,:]
-
-# <codecell>
-
-trips[tripInd].features.ix[start:end,:]
-
-# <codecell>
-
-ggplot(trips[tripInd].coordinates.ix[start:end,:],aes(x='x',y='y')) + geom_point(size=5)
-
-# <codecell>
-
-df = trips[tripInd].radius.copy()
-df['ind'] = range(df.shape[0])
-ggplot(df.ix[start:end,:],aes(x='ind',y='m')) + geom_point(size=10) 
-
-# <codecell>
-
-df = trips[tripInd].speed.copy()
-df['ind'] = range(df.shape[0])
-ggplot(df.ix[start:end,:],aes(x='ind',y='m_s')) + geom_point(size=10)
-
-# <codecell>
-
-df = trips[tripInd].features.copy()
-df['ind'] = range(df.shape[0])
-ggplot(df.ix[start:end,:],aes(x='ind',y='acc')) + geom_point(color='green',size=10)#+\
-#geom_point(df.ix[start:end,:],aes(x='ind',y='cacc'),color='red',size=10)
-
-# <codecell>
-
-ggplot(trips[tripInd].features[trips[tripInd].features.v>=0].ix[start:end,:],aes(x='acc',y='v')) + geom_point(size=10)
-
-# <codecell>
-
-ggplot(trips[tripInd].features[trips[tripInd].features.v>=5].ix[start:end,:],aes(x='acc')) + geom_histogram(binwidth = 0.1)
-
-# <codecell>
-
-ggplot(trips[tripInd].features[trips[tripInd].features.v>=0].ix[start:end,:],aes(x='v')) + geom_histogram(binwidth = 0.5)
-
-# <codecell>
-
-(n,b,p) = matplotlib.pyplot.hist(list(trips[tripInd].features[trips[tripInd].features.v>=0].acc),bins=50,range=[-5,5])
-
-# <codecell>
-
-(n,b,p) = matplotlib.pyplot.hist(list(trips[tripInd].features[trips[tripInd].features.v>=0].v),bins=50,range=[0,40])
-
-# <codecell>
-
+import seaborn as sns
 import itertools
-
-import numpy as np
 from scipy import linalg
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from sklearn import mixture
+from sklearn.mixture import GMM
+from sklearn.neighbors import KernelDensity as kde
 
 # <codecell>
 
-gmm = mixture.GMM(n_components=5, covariance_type='full')
-gmm.fit(trips[tripInd].features)
+driverID = 10
+driverDir = '../Kaggle/drivers/'+str(driverID)
+tripInd = 1
+df = pd.read_csv(driverDir+'/' + str(tripInd)+'.csv')
+trip = Trip(driverID,tripInd,df)
+trip.getSpeed()
+trip.getAcc()
+trip.getFeatures()
+X=trip.features
 
 # <codecell>
 
-dpgmm = mixture.DPGMM(n_components=5, covariance_type='full')
-dpgmm.fit(trips[tripInd].features)
+trip.getRadius()
+trip.getCacc()
 
 # <codecell>
 
-fig1 = plt.figure(figsize=(15, 10))
-color_iter = itertools.cycle(['r', 'g', 'b', 'c', 'm'])
-for i, (clf, title) in enumerate([(gmm, 'GMM'),(dpgmm, 'Dirichlet Process GMM')]):
-#enumerate([(dpgmm, 'Dirichlet Process GMM')]):
-    splot = plt.subplot(2, 2, 1 + i)
-    Y_ = clf.predict(trips[tripInd].features)
-    for i, (mean, covar, color) in enumerate(zip(
-            clf.means_, clf._get_covars(), color_iter)):
-        v, w = linalg.eigh(covar)
-        u = w[0] / linalg.norm(w[0])
-        # as the DP will not use every component it has access to
-        # unless it needs it, we shouldn't plot the redundant
-        # components.
-        if not np.any(Y_ == i):
-            continue
-        plt.scatter(trips[tripInd].features.ix[Y_ == i, 0], trips[tripInd].features.ix[Y_ == i, 1], .8, color=color)
+tripFiles = range(1,201)
+vlim=[5,50]
+clim=[-4,4]
+selectedCols = ['acc','acc2']
 
-        # Plot an ellipse to show the Gaussian component
-        angle = np.arctan(u[1] / u[0])
-        angle = 180 * angle / np.pi  # convert to degrees
-        ell = mpl.patches.Ellipse(mean, v[0], v[1], 180 + angle, color=color)
-        ell.set_clip_box(splot.bbox)
-        ell.set_alpha(0.5)
-        splot.add_artist(ell)
+# <codecell>
 
-    plt.title(title)
+X = pd.DataFrame(columns=selectedCols)
+for index,tripID in enumerate(tripFiles):                       
+    trip = Trip(driverID,tripID,pd.read_csv(driverDir+'/' + str(tripID) + '.csv'))
+    X = X.append(trip.features)
+
+# <codecell>
+
+#cleaned data
+driverID = 10
+tripInd = 1
+df = pd.read_csv('../Kaggle/10_1.csv')
+tripc = Trip(driverID,tripInd,df)
+Xc=tripc.features
+
+# <codecell>
+
+X.index = range(X.shape[0])
+X=X[(X.v<vlim[1]) & (X.v>vlim[0])]
+X=X[(X.acc<clim[1]) & (X.acc>clim[0])]
+X=X[(X.acc2<clim[1]) & (X.acc2>clim[0])]
+X.index = range(X.shape[0])
+X=X[selectedCols]
+
+# <codecell>
+
+sns.jointplot(X.cacc,X.acc,kind = "scatter",size=6,ratio=5,marginal_kws={'bins':30})
+
+# <codecell>
+
+sns.kdeplot(Xc[['acc2','acc']])
+
+# <codecell>
+
+xN = np.asanyarray(X[['acc2','acc']])
+
+# <codecell>
+
+n_components = np.arange(2, 15)
+gmms = [GMM(n_components=n, covariance_type='full').fit(xN) for n in n_components]
+BICs = [gmm.bic(xN) for gmm in gmms]
+i_min = np.argmin(BICs)
+clf=gmms[i_min]
+print '%s components - BIC %s' %(n_components[i_min],BICs[i_min])
+tol = np.percentile(np.exp(clf.score(xN)),10)
+
+# <codecell>
+
+fig1 = plt.figure(figsize=(10, 10))
+color_iter = itertools.cycle(['r', 'g', 'b', 'c', 'm','wheat','violet','sienna',
+                              'yellow','springgreen','sandybrown','tomato','tan','teal'])
+
+Y_ = clf.predict(xN)
+for i, (mean, covar, color) in enumerate(zip(clf.means_, clf._get_covars(), color_iter)):
+    v, w = linalg.eigh(covar)
+    u = w[0] / linalg.norm(w[0])
+
+    if not np.any(Y_ == i):
+        continue
+    plt.scatter(xN[Y_ == i, 0], xN[Y_ == i, 1], .8, color=color)
+
+X_, Y_ = np.meshgrid(np.linspace(clim[0], clim[1]),np.linspace(clim[0], clim[1]))
+XX = np.array([X_.ravel(), Y_.ravel()]).T
+Z = np.exp(clf.score(XX))
+Z = Z.reshape(X_.shape)
+CS = plt.contour(X_, Y_, Z)
 
 plt.show()
 
 # <codecell>
 
-gmm.bic(trips[tripInd].features)
+featuresDir = '/home/user1/Desktop/Share2Windows/Kaggle/features/'
+drivers = map(int,os.listdir('../Kaggle/drivers/'))
+drivers.sort(reverse=False)
+vlim=[5,50]
+clim=[-4,4]
 
-# <codecell>
-
-dpgmm.bic(trips[tripInd].features)
+X = pd.DataFrame(columns=['acc','v'])
+for tripID in xrange(1,201):    
+    X = X.append(pd.read_csv(featuresDir + str(driverID) +'_'+str(tripID) + '.csv'))
+    
+X.index = range(X.shape[0])
+X=X[(X.v<vlim[1]) & (X.v>vlim[0])]
+X=X[(X.acc<clim[1]) & (X.acc>clim[0])]
+X.index = range(X.shape[0])
 
 # <codecell>
 
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
-from sklearn import mixture
-n_samples = 300
-# generate random sample, two components
+from matplotlib import pyplot as plt
+from scipy import stats
+from sklearn.mixture import GMM
+from sklearn.neighbors import KernelDensity
 np.random.seed(0)
-# generate spherical data centered on (20, 20)
-shifted_gaussian = np.random.randn(n_samples, 2) + np.array([20, 20])
-# generate zero centered stretched Gaussian data
-C = np.array([[0., -0.7], [3.5, .7]])
-stretched_gaussian = np.dot(np.random.randn(n_samples, 2), C)
-# concatenate the two datasets into the final training set
-X_train = np.vstack([shifted_gaussian, stretched_gaussian])
-# fit a Gaussian Mixture Model with two components
-clf = mixture.GMM(n_components=2, covariance_type='full')
-clf.fit(X_train)
-# display predicted scores by the model as a contour plot
-x = np.linspace(-20.0, 30.0)
-y = np.linspace(-20.0, 40.0)
-X, Y = np.meshgrid(x, y)
-XX = np.array([X.ravel(), Y.ravel()]).T
-Z = -clf.score_samples(XX)[0]
-Z = Z.reshape(X.shape)
-CS = plt.contour(X, Y, Z, norm=LogNorm(vmin=1.0, vmax=1000.0),
-levels=np.logspace(0, 3, 10))
-CB = plt.colorbar(CS, shrink=0.8, extend='both')
-plt.scatter(X_train[:, 0], X_train[:, 1], .8)
-plt.title('Negative log-likelihood predicted by a GMM')
-plt.axis('tight')
+x = np.asanyarray(X[X.v>5].acc)
+#------------------------------------------------------------
+# plot the results
+fig = plt.figure(figsize=(5, 5))
+fig.subplots_adjust(bottom=0.08, top=0.95, right=0.95, hspace=0.1)
+N_values = (10000,20000)
+subplots = (211, 212)
+np.random.shuffle(x)
+
+for N, subplot in zip(N_values,  subplots):
+    ax = fig.add_subplot(subplot)
+    xN = x[:N]
+   
+    # Compute density via Gaussian Mixtures
+    # we'll try several numbers of clusters
+    n_components = np.arange(2, 10)
+    gmms = [GMM(n_components=n, covariance_type='full').fit(xN) for n in n_components]
+    BICs = [gmm.bic(xN) for gmm in gmms]
+    i_min = np.argmin(BICs)
+    t = np.linspace(-10, 30, 1000)
+    logprob, responsibilities = gmms[i_min].eval(t)
+    
+    # plot the results
+    ax.plot(t, np.exp(logprob), '-', color='gray',
+    label="Mixture Model\n(%i components)" % n_components[i_min])
+    
+    # label the plot
+    ax.text(0.02, 0.95, "%i points" % N, ha='left', va='top',
+    transform=ax.transAxes)
+    ax.set_ylabel('$p(x)$')
+    ax.legend(loc='upper right')
+    if subplot == 212:
+        ax.set_xlabel('$x$')
 plt.show()
+
+# <codecell>
+
+
+# <codecell>
+
+start = 0
+end = trip.n
+
+# <codecell>
+
+ggplot(trip.coordinates.ix[start:end,:],aes(x='x',y='y')) + geom_point(size=5)
+
+# <codecell>
+
+df = trip.cacc.copy()
+df['ind'] = range(df.shape[0])
+ggplot(df.ix[start:end,:],aes(x='ind',y='val')) + geom_point(size=10)
+
+# <codecell>
+
+df = tripc.features.copy()
+df['ind'] = range(df.shape[0])
+ggplot(df.ix[start:end,:],aes(x='ind',y='acc')) + geom_point(color='green',size=10)#+\
+#geom_point(df.ix[start:end,:],aes(x='ind',y='cacc'),color='red',size=10)
 
 # <codecell>
 

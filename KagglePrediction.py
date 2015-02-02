@@ -155,11 +155,10 @@ num_cores=multiprocessing.cpu_count()
 driversFiles = map(int,os.listdir('../Kaggle/drivers/'))
 driversFiles.sort(reverse=False)
 
-# <codecell>
-
 '''for driverID in driversFiles:
-    GetFeatures(driverID)'''
-
+    print driverID
+    GetFeatures(driverID)
+'''
 num_cores=2
 inputs = range(len(driversFiles)/num_cores)
 for i in inputs:
@@ -250,18 +249,165 @@ main_df.to_csv('../Kaggle/GBCaccQuantiles.csv',  index_col=None)
 
 # <codecell>
 
+''' Submission 7'''
 from Trip import Trip
-def GetFeatures(driverID):
+from sklearn.mixture import GMM
+
+featuresDir = '../Kaggle/features'
+tripFiles = range(1,201)
+
+vlim=[5,50]
+clim=[-5,5]
+N=10000
+Percentile = 10
+n_components = np.arange(1, 20)
+
+def GetFeatures(driverID, j):
     #print driverID
     driverDir = '../Kaggle/drivers/'+str(driverID)
-    tripFiles = range(1,201)
+    
+    cur_driver_df = pd.DataFrame(np.zeros((200,3)),columns=['driver','trip','prob'])
+    cur_driver_df.driver = driverID
+    cur_driver_df.trip = tripFiles    
    
+    X = pd.DataFrame(columns=['acc','v'])
     for index,tripID in enumerate(tripFiles):                       
         trip = Trip(driverID,tripID,pd.read_csv(driverDir+'/' + str(tripID) + '.csv'))
-        trip.features.to_csv(driverDir+'/' + str(tripID) + 'f.csv', index=False)
+        trip.features.to_csv(featuresDir+'/' +str(j)+'_' + str(tripID) + '.csv', index=False)
+        X = X.append(trip.features)
+        
+    X.index = range(X.shape[0])
+    X=X[(X.v<vlim[1]) & (X.v>vlim[0])]
+    X=X[(X.acc<clim[1]) & (X.acc>clim[0])]
+    X.index = range(X.shape[0])
+    
+    x = np.asanyarray(X);np.random.shuffle(x)
+    xN = x[:N,:]
+    
+    #train GMM
+    gmms = [GMM(n_components=n, covariance_type='full').fit(xN) for n in n_components]
+    BICs = [gmm.bic(xN) for gmm in gmms]
+    i_min = np.argmin(BICs)
+    clf=gmms[i_min]
+    #print '%s components' %(n_components[i_min])
+    tol = np.percentile(np.exp(clf.score(xN)),Percentile)
+
+    distances=np.zeros(200)
+    for index,tripID in enumerate(tripFiles):    
+        X = pd.read_csv(featuresDir+'/'+str(j)+'_' + str(tripID) + '.csv')
+        X=X[(X.v<vlim[1]) & (X.v>vlim[0])]
+        X=X[(X.acc<clim[1]) & (X.acc>clim[0])]
+        X.index = range(X.shape[0])
+        
+        if (X.shape[0]==0):
+            continue
+            
+        x = np.asanyarray(X);np.random.shuffle(x)
+        xN = x[:N,:]
+        distances[tripID-1] = np.median(np.exp(clf.score(xN)))
+        if distances[tripID-1]>tol:
+            cur_driver_df.prob[tripID-1]=1
+        
+    badDistances = [i+1 for i,x in enumerate(distances) if x<tol]
+    #print '%s badDistances' % (len(badDistances)   )
+    cur_driver_df.to_csv(featuresDir+'/results/' + str(driverID) + '.csv', index=False)
         
     return 0
 
 # <codecell>
 
+import time
+from joblib import Parallel, delayed  
+import multiprocessing
+num_cores=multiprocessing.cpu_count()
+
+driversFiles = map(int,os.listdir('../Kaggle/drivers/'))
+driversFiles.sort(reverse=False)
+
+'''for driverID in driversFiles:
+    print driverID
+    GetFeatures(driverID)
+'''
+num_cores=4
+inputs = range(len(driversFiles)/num_cores)
+for i in inputs:
+    #start = time.time()
+    r=range(num_cores*i,num_cores*i+num_cores)
+    Parallel(n_jobs=num_cores)(delayed(GetFeatures)(driversFiles[j],j % num_cores) for j in r) 
+    #print time.time()-start 
+
+# <codecell>
+
+''' Submission 7'''
+main_df = pd.DataFrame(columns=['driver','trip','prob'])
+for iter, driverID in enumerate(driversFiles):
+    cur_driver_df = pd.read_csv(featuresDir+'/results/' + str(driverID) + '.csv')
+
+    if (driverID in set(main_df.driver)):
+        print 'Error'
+        break
+        
+    main_df=main_df.append(cur_driver_df)
+    
+    #if iter>1:
+    #    break
+    
+main_df.index = range(main_df.shape[0])
+main_df.to_csv('../Kaggle/GMM.csv',  index=False)
+
+# <codecell>
+
+''' Submission 8'''
+from Trip import Trip
+from sklearn.mixture import GMM
+
+featuresDir = '../Kaggle/features'
+tripFiles = range(1,201)
+
+vlim=[0,40]
+clim=[-4,4]
+n_components = [2,5,10]#np.arange(1,10)
+
+def GetFeatures(driverID, j):
+    #print driverID
+    driverDir = '../Kaggle/drivers/'+str(driverID)
+    
+    cur_driver_df = pd.DataFrame(np.zeros((200,4000)))
+   
+    for index,tripID in enumerate(tripFiles):    
+        #print tripID
+        trip = Trip(driverID,tripID,pd.read_csv(driverDir+'/' + str(tripID) + '.csv'))
+        X = trip.features
+        X=X[(X.v<vlim[1]) & (X.v>vlim[0])]
+        X=X[(X.acc<clim[1]) & (X.acc>clim[0])]
+        X.index = range(X.shape[0])    
+        xN = np.asanyarray(X)
+    
+        #train GMM
+        #gmms = [GMM(n_components=n, covariance_type='full').fit(xN) for n in n_components]
+        #BICs = [gmm.bic(xN) for gmm in gmms]
+        #i_min = np.argmin(BICs)
+        #clf=gmms[i_min]
+        #print '%s components' %(n_components[i_min])
+        clf = GMM(n_components=5, covariance_type='full').fit(xN)
+        
+        X_, Y_ = np.meshgrid(np.linspace(clim[0], clim[1],num=80),np.linspace(vlim[0], vlim[1]),num=40)
+        XX = np.array([X_.ravel(), Y_.ravel()]).T
+        Z = np.exp(clf.score(XX))
+        cur_driver_df.loc[tripID] = Z
+
+    cur_driver_df.loc[1:].to_csv(featuresDir+'/results/' + str(driverID) + '.csv', index=False)
+        
+    return 0
+
+# <codecell>
+
+import time
+start = time.time()
+Z=GetFeatures(1,0)
+print time.time()-start
+
+# <codecell>
+
+Z.head()
 

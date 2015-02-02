@@ -6,6 +6,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from math import factorial
 
 # <codecell>
 
@@ -66,10 +67,13 @@ def LeavePRandLabelOut2(labels, p, nFolds):
 
 def LeavePRandLabelOut(labels, p, nFolds):
     from math import factorial
-   
+    
     n = len(set(labels))
     
-    chosenk = factorial(n)/(factorial(n-p)*factorial(p))
+    if n<p:
+        chosenk = 10000000
+    else:
+        chosenk = factorial(n)/(factorial(n-p)*factorial(p))
 
     if chosenk<500000:
         return LeavePRandLabelOut2(labels, p, nFolds)
@@ -90,8 +94,11 @@ def Precision_Recall(cm, labels):
         precision +=  cm[i,i]
         s1 += sums1[i]
         s2 += sums2[i]
-
-    return precision/s2, precision/s1, 2*(precision/s1 * precision/s2)/(precision/s2 + precision/s1)
+    
+    if ((s1>0 and s2>0)):
+        return precision/s2, precision/s1, 2*(precision/s1 * precision/s2)/(precision/s2 + precision/s1)
+    else:
+        return np.nan,np.nan,np.nan
 
 # <codecell>
 

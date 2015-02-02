@@ -10,6 +10,7 @@ import mio
 
 import numpy as np
 import pandas as pd
+from math import factorial
 from ggplot import *
 
 from sklearn.svm import SVC
@@ -41,7 +42,7 @@ imbalanceMsg.head()
 
 # <codecell>
 
-sum(map(int,imbalanceMsg.ImbInd==0))
+sum(map(int,imbalanceMsg.AvgTradePrice==0))
 
 # <codecell>
 
@@ -52,78 +53,67 @@ fdf.head()
 
 # <codecell>
 
-#fdf.priceRange[fdf.priceRange>1]=1
-#(n,b,p) = matplotlib.pyplot.hist(list(fdf.priceRange),bins=100,range=[0,50])
+list(fdf.columns)
 
 # <codecell>
 
-X_pos = fdf[fdf.a14>0]
-X_pos.index = range(X_pos.shape[0])
-X_pos=X_pos[['Ask','AskD','Near','Far','Spread',
- 'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
- 'V8','V8n','V8nn', 'a1','a4','a5']]
+X = fdf.copy()
+X=X[['Ask','AskD','Spread','D5', 'D555', 'D66', 'a1','a4','a5','Bid','BidD', 'D4', 'D444','ATP_P']]
+X.head()
 
-X_neg = fdf[fdf.a14<0]
-X_neg.index = range(X_neg.shape[0])
-X_neg=X_neg[['Bid','BidD','Near','Far','Spread',
- 'D4',  'D444', 'D66', 'V1','V1n', 'V11',  'V11n',
- 'V8','V8n','V8nn', 'a1','a4','a5']]
+# <codecell>
 
-y_pos = fdf.OPC_P>fdf.Ask_P
-y_pos = y_pos[fdf.a14>0]
-y_pos.index = range(y_pos.shape[0])
+X_pos = fdf.copy()
+X_pos=X_pos[[
+ 'Ask',
+ 'D555',
+ 'AskD',
+ 'D5']]
 
-y_neg = fdf.OPC_P<fdf.Bid_P
-y_neg = y_neg[fdf.a14<0]
-y_neg.index = range(y_neg.shape[0])
+X_neg = fdf.copy()
+X_neg=X_neg[[
+ 'D4',
+ 'Bid',
+ 'D444',
+ 'BidD']]
 
 ypln_pos = fdf.OPC_P/fdf.Ask_P-1
-ypln_pos = ypln_pos[fdf.a14>0]
-ypln_pos.index = range(ypln_pos.shape[0])
-
 ypln_neg = 1-fdf.OPC_P/fdf.Bid_P
-ypln_neg = ypln_neg[fdf.a14<0]
-ypln_neg.index = range(ypln_neg.shape[0])
-
-dates = sorted(list(set(fdf.Date)))
-
-ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
 
 # <codecell>
 
-ret = 0.01
+ret = 0.05
 
 ym_pos = fdf.imbInd.copy()
 ym_pos[:] = 0
 ym_pos[fdf.OPC_P-fdf.Ask_P>ret] = 1
-ym_pos = ym_pos[fdf.a14>0]
-ym_pos.index = range(ym_pos.shape[0])
+ym_pos=ym_pos.reset_index(drop=True)
 
 ym_neg = fdf.imbInd.copy()
 ym_neg[:] = 0
 ym_neg[fdf.OPC_P-fdf.Bid_P<-ret] = 1
-ym_neg = ym_neg[fdf.a14<0]
-ym_neg.index = range(ym_neg.shape[0])
+ym_neg=ym_neg.reset_index(drop=True)
 
 # <codecell>
 
-ret = -0.05/100
+ret = 0.01/100
 
 yr_pos = fdf.imbInd.copy()
 yr_pos[:] = 0
-yr_pos[fdf.OPC_P/fdf.Ask_P-1.0<ret]=1#yr_pos[fdf.OPC_P/fdf.Ask_P-1.0>ret]=1
-yr_pos = yr_pos[fdf.a14>0]
-yr_pos.index = range(yr_pos.shape[0])
+yr_pos[fdf.OPC_P/fdf.Ask_P-1.0>ret]=1
 
 yr_neg = fdf.imbInd.copy()
 yr_neg[:] = 0
-yr_neg[fdf.OPC_P/fdf.Bid_P-1>-ret]=1#yr_neg[fdf.OPC_P/fdf.Bid_P-1<-ret]=1
-yr_neg = yr_neg[fdf.a14<0]
-yr_neg.index = range(yr_neg.shape[0])
+yr_neg[fdf.OPC_P/fdf.Bid_P-1<-ret]=1
 
 # <codecell>
 
-(n,b,p) = matplotlib.pyplot.hist(list(yr_pos),bins=10,range=[0,1])
+(n,b,p) = matplotlib.pyplot.hist(list(ym_neg),bins=10,range=[0,1])
+
+# <codecell>
+
+print ym_pos.sum()
+print ym_neg.sum()
 
 # <codecell>
 
@@ -145,8 +135,7 @@ RF(min_samples_split = int(len(yr_neg)*0.03),criterion='entropy',n_jobs=4)
 
 # <codecell>
 
-ttlabesl_pos = fdf[fdf.a14>0].Date;ttlabesl_pos.index = range(ttlabesl_pos.shape[0])
-ttlabesl_neg = fdf[fdf.a14<0].Date;ttlabesl_neg.index = range(ttlabesl_neg.shape[0])
+ttlabels = fdf.Date
 
 # <codecell>
 
@@ -156,11 +145,35 @@ reload(ec)
 
 # <codecell>
 
-cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=50,train_test_labels = ttlabesl_pos,verbose = True)
+cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=50,train_test_labels = ttlabels,verbose = True)
 
 # <codecell>
 
-cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=50,train_test_labels = ttlabesl_neg,verbose = True)
+fi = pd.DataFrame()
+fi['Feature'] = list(X_pos.columns)
+fi['Impotrance'] = clf.feature_importances_
+fi=fi.sort(columns=['Impotrance'],ascending=False)
+fi['Index'] = range(X_pos.shape[1])
+fi.index = fi['Index']
+   
+ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
+geom_point() + geom_text(vjust=0.005)
+
+# <codecell>
+
+cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=50,train_test_labels = ttlabels,verbose = True)
+
+# <codecell>
+
+fi = pd.DataFrame()
+fi['Feature'] = list(X_neg.columns)
+fi['Impotrance'] = clf.feature_importances_
+fi=fi.sort(columns=['Impotrance'],ascending=False)
+fi['Index'] = range(X_neg.shape[1])
+fi.index = fi['Index']
+   
+ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
+geom_point() + geom_text(vjust=0.005)
 
 # <codecell>
 
@@ -178,6 +191,44 @@ cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=50,
 
 
 #Save configuration for C++
+
+# <codecell>
+
+def Forest2SqlZeroImbPerc(eclf_pos,eclf_neg,advantage,db,df):  
+   
+    X_p = df[['Ask','D555','AskD','D5']].copy()
+    X_n = df[['Bid','D444','BidD','D4']].copy()   
+    
+    
+    y_p = df.imbInd.copy()
+    y_p[:] = 0
+    if advantage>0:
+        y_p[df.OPC_P/df.Ask_P-1.0>advantage/10000]=1 #y_p[df.OPC_P/df.Ref_P-1.0>advantage/10000]=1
+    else:
+        y_p[df.OPC_P/df.Ask_P-1.0<advantage/10000]=1
+
+    y_n = df.imbInd.copy()
+    y_n[:] = 0
+    if advantage>0:
+        y_n[df.OPC_P/df.Bid_P-1<-advantage/10000]=1#y_n[df.OPC_P/df.Ref_P-1<-advantage/10000]=1
+    else:
+        y_n[df.OPC_P/df.Bid_P-1>-advantage/10000]=1   
+    
+    ttlabels = df.Date.copy()
+    
+    cm,clf_pos = mmll.clf_cross_validation\
+    (eclf_pos,X_p,y_p,test_size=20,n_folds=20,train_test_labels = ttlabels,verbose = False)
+    fscore1 = clf_pos.fscore
+    mio.Forest2Sql(clf_pos, X_p,2,1,advantage,fscore1,db)
+    
+    cm,clf_neg = mmll.clf_cross_validation\
+    (eclf_neg,X_n,y_n,test_size=20,n_folds=20,train_test_labels = ttlabels,verbose = False)
+    fscore2 = clf_neg.fscore
+    mio.Forest2Sql(clf_neg,X_n,2,-1,advantage,fscore2,db)
+    
+    print "advantage-", advantage," f1-", fscore1, " f2-",fscore2
+    
+    return X_p, X_n,clf_pos,clf_neg
 
 # <codecell>
 
@@ -273,9 +324,20 @@ def Forest2SqlClf(eclf_pos,eclf_neg,advantage,db,df):
 
 # <codecell>
 
-db = '/home/user1/Desktop/Share2Windows/RandomForestDatabasePAPosNeg.sql'
+db = '/home/user1/Desktop/Share2Windows/Qimb/TMP.sql'
+
+# <codecell>
+
 reload(mio)
 mio.DropDB(db)
+
+# <codecell>
+
+reload(mio)
+X_pos, X_neg,clf_pos,clf_neg = Forest2SqlZeroImbPerc(eclf_pos,eclf_neg,1.0,db,fdf)
+
+mio.TestData2Sql(1, X_pos,ypln_pos,db)
+mio.TestData2Sql(-1, X_neg,ypln_neg,db)
 
 # <codecell>
 

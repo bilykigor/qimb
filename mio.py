@@ -57,12 +57,15 @@ def Forest2Sql(clf,X,Type,Side,Advantage,Precision,db):
         Type = 1
         Advantage = 0
     else:
-        if (clf.estimators_[0].tree_.n_classes[0]==1):
-            Type = 1
-            Advantage = 0
-        #classification
+        if Type==2:
+           print 'Type 2'
         else:
-            Type = 0
+            if (clf.estimators_[0].tree_.n_classes[0]==1):
+                Type = 1
+                Advantage = 0
+            #classification
+            else:
+                Type = 0
     
     df = df.append({'ID':RFID,'Type':Type,'Side':Side,'NTrees':clf.n_estimators,'Advantage':Advantage,'Precision':Precision},ignore_index=True) 
     df.to_sql('RFnames',con,index=False,if_exists='append')
@@ -136,7 +139,7 @@ def TreeTest2Txt(clf,X,fileName):
 
 def TreeTest2Sql(clf,X,RFID,Type,Side,con):
     import pandas as pd
-    if (Type==0):
+    if ((Type==0) | (Type==2)):
         proba = clf.predict_proba(X)
         df = pd.DataFrame(proba[:,0], columns = ['Probability'])
     else:
@@ -168,7 +171,7 @@ def TestData2Sql(side,X,y,db):
         return     
         
     df = X.copy()
-    df.columns = ['F0','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','F13','F14','F15','F16','F17']
+    df.columns = ['F'+ str(i) for i in range(X.shape[1])]
     df["Side"] = side
     df["YSide"] = 0
     df.YSide[y>0] = 1
@@ -289,7 +292,7 @@ def DropDB(db):
         print "Error %s:" % e.args[0]
         con.close()
         return     
-    
+
     cur = con.execute("DELETE FROM RFdata")
     con.commit()
     cur = con.execute("DELETE FROM RFnames")

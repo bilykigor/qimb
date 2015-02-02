@@ -28,125 +28,106 @@ reload(mmll)
 # <codecell>
 
 #Procees c++ created features
-f = '/home/user1/Desktop/Share2Windows/Qimb/firstImbNoImbS.csv' 
+f = '/home/user1/Desktop/Share2Windows/Qimb/rollBackFeatures.csv' 
                    
-imbalanceMsg = pd.read_csv(f, low_memory=False)
+data = pd.read_csv(f, low_memory=False)
 
 #imbalanceMsg = imbalanceMsg[imbalanceMsg.ImbInd!=0]
 #imbalanceMsg.index = range(imbalanceMsg.shape[0])
 
-print imbalanceMsg.shape
+print data.shape
 
-imbalanceMsg.head()
+data.head()
 
 # <codecell>
 
-sum(map(int,imbalanceMsg.ImbInd==0))
+list(data.columns)
 
 # <codecell>
 
 #Creating features
 reload(qimbs)
-fdf = qimbs.create_features34(imbalanceMsg)
+fdf = qimbs.create_features44(data)
 fdf.head()
 
 # <codecell>
 
-#fdf.priceRange[fdf.priceRange>1]=1
-#(n,b,p) = matplotlib.pyplot.hist(list(fdf.priceRange),bins=100,range=[0,50])
+list(fdf.columns)
 
 # <codecell>
 
-X_pos = fdf[fdf.a14>0]
-X_pos.index = range(X_pos.shape[0])
-X_pos=X_pos[['Ask','AskD','Near','Far','Spread',
- 'D5', 'D555', 'D66', 'V1','V1n', 'V11', 'V11n',
- 'V8','V8n','V8nn', 'a1','a4','a5']]
-
-X_neg = fdf[fdf.a14<0]
-X_neg.index = range(X_neg.shape[0])
-X_neg=X_neg[['Bid','BidD','Near','Far','Spread',
- 'D4',  'D444', 'D66', 'V1','V1n', 'V11',  'V11n',
- 'V8','V8n','V8nn', 'a1','a4','a5']]
-
-y_pos = fdf.OPC_P>fdf.Ask_P
-y_pos = y_pos[fdf.a14>0]
-y_pos.index = range(y_pos.shape[0])
-
-y_neg = fdf.OPC_P<fdf.Bid_P
-y_neg = y_neg[fdf.a14<0]
-y_neg.index = range(y_neg.shape[0])
-
-ypln_pos = fdf.OPC_P/fdf.Ask_P-1
-ypln_pos = ypln_pos[fdf.a14>0]
-ypln_pos.index = range(ypln_pos.shape[0])
-
-ypln_neg = 1-fdf.OPC_P/fdf.Bid_P
-ypln_neg = ypln_neg[fdf.a14<0]
-ypln_neg.index = range(ypln_neg.shape[0])
-
-dates = sorted(list(set(fdf.Date)))
-
-ERRORS = pd.DataFrame(columns=['Model','TrainError','TestError'])
+X=fdf[[
+'OPC_P',
+'LastRef_P',
+'LastNear_P',
+'p1',
+ 'p2',
+ 'p3',
+ 'p4',
+ 'p5',
+ 'p6',
+'p7',
+ 'p8',
+ 'p9',
+ 'p10',
+    'p11',
+ 'p12',
+ 'p13',
+ 'p14',
+ 'p15',
+ 'p16',
+ 'p17',
+ 'p18',
+'OPC_S', 'PrevCLC_S', 'LastImbSharesTraded', 'AllSharesTraded','MaxPairedS','v1',
+ 'v2',
+ 'v3',
+ 'v4',
+ 'v5',
+ 'v6']]
 
 # <codecell>
 
-ret = 0.01
-
-ym_pos = fdf.imbInd.copy()
-ym_pos[:] = 0
-ym_pos[fdf.OPC_P-fdf.Ask_P>ret] = 1
-ym_pos = ym_pos[fdf.a14>0]
-ym_pos.index = range(ym_pos.shape[0])
-
-ym_neg = fdf.imbInd.copy()
-ym_neg[:] = 0
-ym_neg[fdf.OPC_P-fdf.Bid_P<-ret] = 1
-ym_neg = ym_neg[fdf.a14<0]
-ym_neg.index = range(ym_neg.shape[0])
+X.describe()
 
 # <codecell>
 
-ret = -0.05/100
+ret = 0.1
+bidUp=pd.DataFrame(np.asarray(fdf.OPC_S),columns=['val']).astype(int)
+bidUp.val = int(0) 
+bidUp.val[fdf.Bid_Max-fdf.OPC_Bid_P>ret] =  int(1) 
 
-yr_pos = fdf.imbInd.copy()
-yr_pos[:] = 0
-yr_pos[fdf.OPC_P/fdf.Ask_P-1.0<ret]=1#yr_pos[fdf.OPC_P/fdf.Ask_P-1.0>ret]=1
-yr_pos = yr_pos[fdf.a14>0]
-yr_pos.index = range(yr_pos.shape[0])
+bidDown=pd.DataFrame(np.asarray(fdf.OPC_S),columns=['val']).astype(int)
+bidDown.val =  int(0) 
+bidDown.val[fdf.OPC_Bid_P-fdf.Bid_Min>ret] =  int(1) 
 
-yr_neg = fdf.imbInd.copy()
-yr_neg[:] = 0
-yr_neg[fdf.OPC_P/fdf.Bid_P-1>-ret]=1#yr_neg[fdf.OPC_P/fdf.Bid_P-1<-ret]=1
-yr_neg = yr_neg[fdf.a14<0]
-yr_neg.index = range(yr_neg.shape[0])
+askUp=pd.DataFrame(np.asarray(fdf.OPC_S),columns=['val']).astype(int)
+askUp.val = int(0) 
+askUp.val[fdf.Ask_Max-fdf.OPC_Ask_P>ret] =  int(1) 
+
+askDown=pd.DataFrame(np.asarray(fdf.OPC_S),columns=['val']).astype(int)
+askDown.val =  int(0) 
+askDown.val[fdf.OPC_Ask_P-fdf.Ask_Min>ret] =  int(1) 
 
 # <codecell>
 
-(n,b,p) = matplotlib.pyplot.hist(list(yr_pos),bins=10,range=[0,1])
+ggplot(bidDown, aes('val')) + geom_histogram(binwidth=0.1,alpha=0.5, fill = 'green')+\
+geom_histogram(askDown, aes('val'),binwidth=0.1,alpha=0.5, fill = 'red') 
 
 # <codecell>
 
-eclf_pos = RF(min_samples_split = int(len(yr_pos)*0.03),criterion='entropy',n_jobs=4)
-'''ec.EnsembleClassifier(
+eclfUp = ec.EnsembleClassifier(
 clfs=[
-RF(min_samples_split = int(len(yr_pos)*0.03),criterion='entropy',n_jobs=4)
-#,GBC(min_samples_split = len(yr_pos)*0.03,init='zero')
+RF(min_samples_split = int(len(bidUp)*0.03),criterion='entropy',n_jobs=4)\
+#,GBC(min_samples_split = len(bidUp)*0.03,init='zero')
 #,LR(class_weight='auto',C=0.1)
-])'''
+])
 
-eclf_neg = RF(min_samples_split = int(len(yr_neg)*0.03),criterion='entropy',n_jobs=4)
-'''= ec.EnsembleClassifier(
+eclfDown =ec.EnsembleClassifier(
 clfs=[
-RF(min_samples_split = int(len(yr_neg)*0.03),criterion='entropy',n_jobs=4)
-#,GBC(min_samples_split = len(yr_neg)*0.03,init='zero')
+RF(min_samples_split = int(len(bidDown)*0.03),criterion='entropy',n_jobs=4)\
+#,GBC(min_samples_split = len(bidDown)*0.03,init='zero')
 #,LR(class_weight='auto',C=0.1)
-])'''
-
-# <codecell>
-
-ttlabesl_pos = fdf[fdf.a14>0].Date;ttlabesl_pos.index = range(ttlabesl_pos.shape[0])
-ttlabesl_neg = fdf[fdf.a14<0].Date;ttlabesl_neg.index = range(ttlabesl_neg.shape[0])
+])
 
 # <codecell>
 
@@ -156,17 +137,43 @@ reload(ec)
 
 # <codecell>
 
-cm,clf = mmll.clf_cross_validation(eclf_pos,X_pos,yr_pos,test_size=5,n_folds=50,train_test_labels = ttlabesl_pos,verbose = True)
+cm,clf = mmll.clf_cross_validation(eclfUp,X,bidUp.val,test_size=5,n_folds=10,train_test_labels = fdf.Date,verbose = True)
 
 # <codecell>
 
-cm,clf = mmll.clf_cross_validation(eclf_neg,X_neg,yr_neg,test_size=5,n_folds=50,train_test_labels = ttlabesl_neg,verbose = True)
+fi = pd.DataFrame()
+fi['Feature'] = list(X.columns)
+fi['Impotrance'] = clf.clfs[0].feature_importances_
+fi=fi.sort(columns=['Impotrance'],ascending=False)
+fi['Index'] = range(X.shape[1])
+fi.index = fi['Index']
+   
+ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
+geom_point() + geom_text(vjust=0.005)
 
 # <codecell>
 
+cm,clf = mmll.clf_cross_validation(eclfDown,X,bidDown.val,test_size=5,n_folds=10,train_test_labels = fdf.Date,verbose = True)
 
+# <codecell>
 
+cm,clf = mmll.clf_cross_validation(eclfUp,X,askUp.val,test_size=5,n_folds=10,train_test_labels = fdf.Date,verbose = True)
 
+# <codecell>
+
+cm,clf = mmll.clf_cross_validation(eclfDown,X,askDown.val,test_size=5,n_folds=10,train_test_labels = fdf.Date,verbose = True)
+
+# <codecell>
+
+fi = pd.DataFrame()
+fi['Feature'] = list(X.columns)
+fi['Impotrance'] = clf.feature_importances_
+fi=fi.sort(columns=['Impotrance'],ascending=False)
+fi['Index'] = range(X.shape[1])
+fi.index = fi['Index']
+   
+ggplot(fi,aes('Index','Impotrance',label='Feature')) +\
+geom_point() + geom_text(vjust=0.005)
 
 
 

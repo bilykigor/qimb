@@ -235,6 +235,8 @@ def create_features33(imbalanceMsg):
         
     fdf['OPC_P'] = imbalanceMsg.OPC_P
     
+    fdf['Ref_P'] = imbalanceMsg.ImbRef
+    
     fdf['Ask_P'] = ask
     
     fdf['Bid_P'] = bid
@@ -316,6 +318,206 @@ def create_features33(imbalanceMsg):
     fdf.imbInd[(fdf['imbInd']!=0) & (fdf['imbInd']!=23)]=1
     fdf.imbInd[fdf['imbInd']==23]=2
             
+    fdf.index = range(fdf.shape[0])
+    
+    return fdf
+
+# <codecell>
+
+def create_features34(imbalanceMsg):  
+    #Creating features for zero first imbalance
+    import numpy as np
+    import pandas as pd
+    fdf = pd.DataFrame()
+
+    midP = 0.5*(imbalanceMsg.Ask_P + imbalanceMsg.Bid_P)
+    bid = imbalanceMsg.Bid_P
+    bidS = imbalanceMsg.Bid_S    
+    min3 = imbalanceMsg[['ImbRef','ImbCBC','ImbFar']].apply(min,axis=1)
+    max3 = imbalanceMsg[['ImbRef','ImbCBC','ImbFar']].apply(max,axis=1)
+       
+    imbalanceMsg['Mid_P'] = 0.5*( imbalanceMsg.Ask_P +  imbalanceMsg.Bid_P)
+    ref = imbalanceMsg.ImbRef
+    ask = imbalanceMsg.Ask_P
+    askS = imbalanceMsg.Ask_S
+    near = imbalanceMsg.ImbCBC
+    far = imbalanceMsg.ImbFar
+    closeP = imbalanceMsg.PrevCLC_P
+    spread = ask - bid
+    
+    fdf['Symbol'] = imbalanceMsg.Symbol
+    
+    fdf['Date'] = imbalanceMsg.Date
+        
+    fdf['OPC_P'] = imbalanceMsg.OPC_P
+    
+    fdf['Ref_P'] = imbalanceMsg.ImbRef
+    
+    fdf['Ask_P'] = ask
+    
+    fdf['Bid_P'] = bid
+    
+    fdf['Mid_P'] = midP
+    
+    fdf['ATP_P'] = imbalanceMsg.AvgTradePrice
+    #---------------------------------
+        
+    fdf['Bid'] = ref/bid-1
+    
+    fdf['Ask'] = ask/ref-1   
+        
+    fdf['BidD'] = bid - ref
+    
+    fdf['AskD'] = ref - ask
+    #---------------------------------
+    
+    fdf['Near'] = near/ref-1
+    
+    fdf['Far'] = far/ref-1
+    
+    fdf['Spread'] = spread/ref
+    #---------------------------------
+    
+    fdf['D4'] = 100*(bid-ref)/closeP
+
+    fdf['D5'] = 100*(ref-ask)/closeP
+    #---------------------------------
+        
+    fdf['D444'] = (bid-ref)/(1+spread)
+
+    fdf['D555'] = (ref-ask)/(1+spread)
+    #---------------------------------
+    
+    fdf['D66'] = 100*(ref/midP-1)
+    #---------------------------------   
+    fdf['V1n'] = (askS - bidS)/((askS + bidS)/2+np.abs(imbalanceMsg.ImbShares))
+    
+    fdf['V11'] = (askS - bidS)/(100+imbalanceMsg.ImbPaired)
+    
+    fdf['V11n'] = (askS - bidS)/((askS + bidS)/2+imbalanceMsg.ImbPaired)
+    #---------------------------------
+       
+    fdf['a1'] = fdf['Bid']*fdf['Ask']
+
+    fdf['a4'] = fdf['D5']*fdf['D4']
+    
+    fdf['a5'] = fdf['D444']*fdf['D555']
+    #---------------------------------
+           
+    fdf['y'] = 1*(imbalanceMsg.OPC_P>ask) -  1*(imbalanceMsg.OPC_P<bid)
+        
+    fdf['PrevCLC'] = closeP/ref-1   
+
+    fdf['D3'] = 100*(midP/closeP-1)
+        
+    fdf['D7'] = 100*(ref/closeP-1)
+    
+    fdf['a3'] = fdf['D3']*fdf['D4']
+       
+    fdf['a6'] = fdf['D444']*fdf['D444']
+    
+    fdf['a7'] = fdf['D555']*fdf['D555']
+    
+    fdf['priceRange'] = np.floor(fdf['Mid_P']/10)
+    
+    fdf['imbInd'] = imbalanceMsg.ImbInd
+    fdf.imbInd[(fdf['imbInd']!=0) & (fdf['imbInd']!=23)]=1
+    fdf.imbInd[fdf['imbInd']==23]=2
+            
+    fdf.index = range(fdf.shape[0])
+    
+    return fdf
+
+# <codecell>
+
+def create_features44(df):  
+    #Creating features for price rollback prediction
+    import numpy as np
+    import pandas as pd
+    fdf = pd.DataFrame()
+    
+    fdf['Symbol'] = df.Symbol
+    
+    fdf['Date'] = df.Date
+    
+    fdf['OPC_P'] = df.OPC_P
+    
+    fdf['LastRef_P'] = df.Ref24
+    
+    fdf['LastNear_P'] = df.Near24
+    
+    fdf['OPC_Ask_P'] = df.OPC_Ask_P
+    
+    fdf['OPC_Bid_P'] = df.OPC_Bid_P
+    
+    fdf['Ask_Max'] = df.Ask_Max
+    
+    fdf['Bid_Max'] = df.Bid_Max
+    
+    fdf['Ask_Min'] = df.Ask_Min
+    
+    fdf['Bid_Min'] = df.Bid_Min
+    
+    fdf['p1'] = fdf['OPC_P']-fdf['LastRef_P']
+    
+    fdf['p2'] = fdf['OPC_P']-fdf['LastNear_P']
+    
+    fdf['p3'] = fdf['LastRef_P']-fdf['LastNear_P']
+    
+    fdf['p4'] = fdf['p1']/fdf['OPC_P'] -1
+    
+    fdf['p5'] = fdf['p2']/fdf['OPC_P'] -1
+    
+    fdf['p6'] = fdf['p3']/fdf['OPC_P'] -1
+    
+    fdf['p7'] = fdf['LastRef_P']-df['LastAsk_P']
+    
+    fdf['p8'] = df['LastBid_P']-fdf['LastRef_P']
+    
+    fdf['p9'] = fdf['p7']/fdf['OPC_P'] -1
+    
+    fdf['p10'] = fdf['p8']/fdf['OPC_P'] -1
+    
+    fdf['p11'] = fdf['LastRef_P']-df['OPC_Ask_P']
+    
+    fdf['p12'] = df['OPC_Bid_P']-fdf['LastRef_P']
+    
+    fdf['p13'] = fdf['p11']/fdf['OPC_P'] -1
+    
+    fdf['p14'] = fdf['p12']/fdf['OPC_P'] -1
+    
+    fdf['p15'] = fdf['OPC_Ask_P']-df['LastAsk_P']
+    
+    fdf['p16'] = df['LastBid_P']-fdf['OPC_Bid_P']
+    
+    fdf['p17'] = fdf['p15']/fdf['OPC_P'] -1
+    
+    fdf['p18'] = fdf['p16']/fdf['OPC_P'] -1
+    
+        
+    fdf['OPC_S'] = df.OPC_S
+    
+    fdf['PrevCLC_S'] = df.PrevCLC_S
+    
+    fdf['LastImbSharesTraded'] = df.LastImbSharesTraded
+    
+    fdf['AllSharesTraded'] = df.AllSharesTraded
+    
+    fdf['MaxPairedS'] = df.MaxPairedS
+    
+    fdf['v1'] = fdf['OPC_S']/(1+fdf['PrevCLC_S'])
+    
+    fdf['v2']= fdf['AllSharesTraded']/(1+fdf['OPC_S'])
+    
+    fdf['v3']= fdf['LastImbSharesTraded']/(1+fdf['OPC_S'])
+    
+    fdf['v4']= fdf['LastImbSharesTraded']/(1+fdf['AllSharesTraded'])
+    
+    fdf['v5']= fdf['AllSharesTraded']/(1+fdf['MaxPairedS'])
+    
+    fdf['v6']= fdf['LastImbSharesTraded']/(1+fdf['MaxPairedS'])
+
+     
     fdf.index = range(fdf.shape[0])
     
     return fdf
