@@ -78,10 +78,12 @@ class Trip:
         np.sqrt((x[self.window:]-x[:-self.window])**2 + (y[self.window:]-y[:-self.window])**2)/self.window)
         self.speed.columns = ['val']
     
-    def getFeatures(self):               
+    def getFeatures(self): 
+        #print 1
         self.features = pd.DataFrame(self.acc2.copy())
         self.features.columns = ['acc2']
         self.features['acc'] = np.asarray(pd.rolling_mean(self.acc.val,window=2).ix[1:])
+        #self.features['cacc'] = np.asarray(pd.rolling_mean(self.cacc.val,window=2).ix[1:])
         self.features['v'] = np.asarray(pd.rolling_mean(self.speed.val,window=3).ix[2:])
 
     
